@@ -62,21 +62,23 @@ async def process_results_and_score(
             {"p1": p1, "p2": p2, "p3": p3},
             is_sprint=is_sprint,
         )
+        existing_score = await db.get_score(pred["user_id"], race_id, is_sprint)
         await db.save_score(
             pred["user_id"], race_id, is_sprint,
             result["total"], result["breakdown"],
         )
-        # Notify user
-        breakdown_text = "\n".join(result["breakdown"])
-        try:
-            await bot.send_message(
-                pred["telegram_id"],
-                f"📊 <b>Результаты {'спринта' if is_sprint else 'гонки'}</b>\n\n"
-                f"Твои очки: <b>{result['total']}</b>\n\n{breakdown_text}",
-                parse_mode="HTML",
-            )
-        except Exception:
-            pass
+        # Notify user only on first entry to avoid duplicate notifications
+        if not existing_score:
+            breakdown_text = "\n".join(result["breakdown"])
+            try:
+                await bot.send_message(
+                    pred["telegram_id"],
+                    f"📊 <b>Результаты {'спринта' if is_sprint else 'гонки'}</b>\n\n"
+                    f"Твои очки: <b>{result['total']}</b>\n\n{breakdown_text}",
+                    parse_mode="HTML",
+                )
+            except Exception:
+                pass
 
         summary_lines.append(f"{pred['full_name']}: {result['total']} очк.")
 

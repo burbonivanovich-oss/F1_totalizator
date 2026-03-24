@@ -82,7 +82,7 @@ def calculate_score(
     if is_sprint:
         multiplier = cfg["sprint_multiplier"]
         original = points
-        points = round(points * multiplier)
+        points = int(points * multiplier + (0.5 if points >= 0 else -0.5))
         breakdown.append(f"× {multiplier} (спринт): {original} → {points}")
 
     return {"total": points, "breakdown": breakdown}

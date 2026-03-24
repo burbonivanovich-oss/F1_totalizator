@@ -186,6 +186,16 @@ async def save_score(
         await db.commit()
 
 
+async def get_score(user_id: int, race_id: str, is_sprint: bool) -> Optional[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT * FROM scores WHERE user_id = ? AND race_id = ? AND is_sprint = ?
+        """, (user_id, race_id, int(is_sprint))) as cur:
+            row = await cur.fetchone()
+            return dict(row) if row else None
+
+
 async def get_leaderboard() -> list[dict]:
     """Returns list of {full_name, telegram_id, total_points, races_count}."""
     async with aiosqlite.connect(DB_PATH) as db:

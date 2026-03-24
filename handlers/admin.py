@@ -39,6 +39,12 @@ async def result_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Гонщик {driver_id!r} не найден.")
             return
 
+    if race_type.lower() not in ("race", "sprint"):
+        await update.message.reply_text(
+            f"Неверный тип {race_type!r}. Используй: race или sprint"
+        )
+        return
+
     is_sprint = race_type.lower() == "sprint"
     summary = await process_results_and_score(race_id, is_sprint, p1, p2, p3, context.bot)
     await update.message.reply_text(f"✅ Результаты сохранены:\n{summary}")

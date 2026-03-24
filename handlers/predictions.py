@@ -196,6 +196,9 @@ async def pick_p1(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     driver_id = query.data.split(":")[1]
+    if driver_id not in DRIVER_BY_ID:
+        await query.answer("Неизвестный гонщик, попробуй снова.")
+        return STATE_PICK_P1
     context.user_data["pred_chosen"] = [driver_id]
 
     race = RACE_BY_ID[context.user_data["pred_race_id"]]
@@ -221,6 +224,9 @@ async def pick_p2(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     driver_id = query.data.split(":")[1]
+    if driver_id not in DRIVER_BY_ID:
+        await query.answer("Неизвестный гонщик, попробуй снова.")
+        return STATE_PICK_P2
     chosen = context.user_data["pred_chosen"]
     chosen.append(driver_id)
     context.user_data["pred_chosen"] = chosen
@@ -249,6 +255,9 @@ async def pick_p3(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     driver_id = query.data.split(":")[1]
+    if driver_id not in DRIVER_BY_ID:
+        await query.answer("Неизвестный гонщик, попробуй снова.")
+        return STATE_PICK_P3
     chosen = context.user_data["pred_chosen"]
     chosen.append(driver_id)
 
