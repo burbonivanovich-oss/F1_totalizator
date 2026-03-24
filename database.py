@@ -22,9 +22,7 @@ async def init_db():
                 user_id      INTEGER NOT NULL,
                 race_id      TEXT NOT NULL,
                 is_sprint    INTEGER NOT NULL DEFAULT 0,
-                p1           TEXT NOT NULL,
-                p2           TEXT NOT NULL,
-                p3           TEXT NOT NULL,
+                positions    TEXT NOT NULL,
                 submitted_at TEXT NOT NULL,
                 updated_at   TEXT NOT NULL,
                 UNIQUE(user_id, race_id, is_sprint),
@@ -34,11 +32,9 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS results (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 race_id     TEXT NOT NULL,
-                is_sprint    INTEGER NOT NULL DEFAULT 0,
-                p1           TEXT NOT NULL,
-                p2           TEXT NOT NULL,
-                p3           TEXT NOT NULL,
-                entered_at   TEXT NOT NULL,
+                is_sprint   INTEGER NOT NULL DEFAULT 0,
+                positions   TEXT NOT NULL,
+                entered_at  TEXT NOT NULL,
                 UNIQUE(race_id, is_sprint)
             );
 
@@ -89,19 +85,19 @@ async def get_user_by_telegram_id(telegram_id: int) -> Optional[dict]:
 
 async def save_prediction(
     user_id: int, race_id: str, is_sprint: bool,
-    p1: str, p2: str, p3: str,
+    positions: list[str],
 ) -> None:
+    """Save prediction with ordered list of driver IDs (16 for race, 10 for sprint)."""
     async with aiosqlite.connect(DB_PATH) as db:
         now = datetime.now(timezone.utc).isoformat()
+        positions_json = json.dumps(positions, ensure_ascii=False)
         await db.execute("""
-            INSERT INTO predictions (user_id, race_id, is_sprint, p1, p2, p3, submitted_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO predictions (user_id, race_id, is_sprint, positions, submitted_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(user_id, race_id, is_sprint) DO UPDATE SET
-                p1 = excluded.p1,
-                p2 = excluded.p2,
-                p3 = excluded.p3,
+                positions = excluded.positions,
                 updated_at = excluded.updated_at
-        """, (user_id, race_id, int(is_sprint), p1, p2, p3, now, now))
+        """, (user_id, race_id, int(is_sprint), positions_json, now, now))
         await db.commit()
 
 
@@ -113,7 +109,11 @@ async def get_prediction(user_id: int, race_id: str, is_sprint: bool) -> Optiona
             WHERE user_id = ? AND race_id = ? AND is_sprint = ?
         """, (user_id, race_id, int(is_sprint))) as cur:
             row = await cur.fetchone()
-            return dict(row) if row else None
+            if not row:
+                return None
+            result = dict(row)
+            result["positions"] = json.loads(result["positions"])
+            return result
 
 
 async def get_user_predictions(user_id: int) -> list[dict]:
@@ -124,23 +124,28 @@ async def get_user_predictions(user_id: int) -> list[dict]:
             ORDER BY submitted_at DESC
         """, (user_id,)) as cur:
             rows = await cur.fetchall()
-            return [dict(r) for r in rows]
+            results = []
+            for r in rows:
+                row_dict = dict(r)
+                row_dict["positions"] = json.loads(row_dict["positions"])
+                results.append(row_dict)
+            return results
 
 
 # ── Results ───────────────────────────────────────────────────────────────────
 
-async def save_result(race_id: str, is_sprint: bool, p1: str, p2: str, p3: str) -> None:
+async def save_result(race_id: str, is_sprint: bool, positions: list[str]) -> None:
+    """Save race result with ordered list of driver IDs (16 for race, 10 for sprint)."""
     async with aiosqlite.connect(DB_PATH) as db:
         now = datetime.now(timezone.utc).isoformat()
+        positions_json = json.dumps(positions, ensure_ascii=False)
         await db.execute("""
-            INSERT INTO results (race_id, is_sprint, p1, p2, p3, entered_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO results (race_id, is_sprint, positions, entered_at)
+            VALUES (?, ?, ?, ?)
             ON CONFLICT(race_id, is_sprint) DO UPDATE SET
-                p1 = excluded.p1,
-                p2 = excluded.p2,
-                p3 = excluded.p3,
+                positions = excluded.positions,
                 entered_at = excluded.entered_at
-        """, (race_id, int(is_sprint), p1, p2, p3, now))
+        """, (race_id, int(is_sprint), positions_json, now))
         await db.commit()
 
 
@@ -151,7 +156,11 @@ async def get_result(race_id: str, is_sprint: bool) -> Optional[dict]:
             SELECT * FROM results WHERE race_id = ? AND is_sprint = ?
         """, (race_id, int(is_sprint))) as cur:
             row = await cur.fetchone()
-            return dict(row) if row else None
+            if not row:
+                return None
+            result = dict(row)
+            result["positions"] = json.loads(result["positions"])
+            return result
 
 
 async def get_all_predictions_for_race(race_id: str, is_sprint: bool) -> list[dict]:
@@ -164,7 +173,12 @@ async def get_all_predictions_for_race(race_id: str, is_sprint: bool) -> list[di
             WHERE p.race_id = ? AND p.is_sprint = ?
         """, (race_id, int(is_sprint))) as cur:
             rows = await cur.fetchall()
-            return [dict(r) for r in rows]
+            results = []
+            for r in rows:
+                row_dict = dict(r)
+                row_dict["positions"] = json.loads(row_dict["positions"])
+                results.append(row_dict)
+            return results
 
 
 # ── Scores ────────────────────────────────────────────────────────────────────

@@ -1,7 +1,8 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, KeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes
 
 import database as db
+from config import WEBAPP_URL
 
 
 MAIN_MENU_TEXT = (
@@ -18,6 +19,17 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
          InlineKeyboardButton("🏆 Лидерборд", callback_data="menu:leaderboard")],
         [InlineKeyboardButton("🏎 Гонщики", callback_data="menu:drivers")],
     ])
+
+
+def webapp_reply_keyboard(race_id: str, is_sprint: bool, tg_id: int) -> ReplyKeyboardMarkup:
+    """Reply keyboard with a WebApp button for the given race."""
+    sprint_param = "1" if is_sprint else "0"
+    url = f"{WEBAPP_URL}?race_id={race_id}&is_sprint={sprint_param}&tg_id={tg_id}"
+    return ReplyKeyboardMarkup(
+        [[KeyboardButton("📱 Открыть прогноз", web_app=WebAppInfo(url=url))]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):

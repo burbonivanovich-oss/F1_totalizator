@@ -1,88 +1,80 @@
-# Scoring configuration — edit freely to adjust the game balance.
+# F1 2026 Scoring rules
 #
-# The bot awards points for predicting the top-3 (podium) of each race.
-# For sprint weekends, the same positions are predicted for the SPRINT race,
-# and the sprint score is multiplied by SPRINT_MULTIPLIER.
+# Points awarded for predictions on sprint (top 10) and race (top 16).
+# Users predict 16 drivers for race, 10 drivers for sprint in exact order.
 
 SCORING_CONFIG = {
-    # Points for predicting a driver in the EXACT correct position
+    # 1. Exact hit — driver in the same predicted position
     "exact_position": {
-        1: 25,   # Bull's-eye on P1
-        2: 18,   # Bull's-eye on P2
-        3: 15,   # Bull's-eye on P3
+        "sprint": 5,   # Sprint exact match
+        "race": 10,    # Race exact match
     },
 
-    # Points when a driver IS on the podium but in the WRONG predicted position
-    # (e.g. you predicted P1 but he finished P2 or P3)
-    "podium_but_wrong_position": 5,
+    # 2. Top hit — driver finished in top, but not predicted position
+    "top_hit_wrong_position": {
+        "sprint": 2,   # Sprint top hit, wrong position
+        "race": 3,     # Race top hit, wrong position
+    },
 
-    # Penalty when a driver you predicted for the podium MISSED the podium entirely
-    "wrong_podium_penalty": -3,
+    # 3. Bonus for correct winner (P1 prediction matches actual winner)
+    "p1_winner_bonus": {
+        "sprint": 3,   # Additional points if P1 is correct (sprint)
+        "race": 5,     # Additional points if P1 is correct (race)
+    },
 
-    # Sprint race scores are this fraction of the regular race scores
-    "sprint_multiplier": 0.5,
-
-    # --- Optional advanced knobs (set to 0 to disable) ---
-
-    # Bonus for getting the entire podium right (all three in exact order)
-    "full_podium_bonus": 10,
-
-    # Bonus for getting all three podium drivers correct (any order)
-    "all_drivers_bonus": 5,
+    # 4. Penalty for driver not in results (DNF, disqualified, etc.)
+    "not_in_results_penalty": -1,
 }
 
 
 def calculate_score(
-    prediction: dict,      # {"p1": "VER", "p2": "HAM", "p3": "NOR"}
-    result: dict,          # {"p1": "VER", "p2": "LEC", "p3": "HAM"}
+    prediction: dict,      # {"positions": ["VER", "HAM", "LEC", ...]}
+    result: dict,          # {"positions": ["VER", "LEC", "HAM", ...]}
     is_sprint: bool = False,
 ) -> dict:
     """
+    Calculates points for top 16 (race) or top 10 (sprint) predictions.
+
     Returns a dict with:
       - total: int (final points for this race)
-      - breakdown: list of str (human-readable description of each earned/lost point)
+      - breakdown: list of str (human-readable scoring breakdown)
     """
     cfg = SCORING_CONFIG
-    pred_positions = {1: prediction["p1"], 2: prediction["p2"], 3: prediction["p3"]}
-    result_positions = {1: result["p1"], 2: result["p2"], 3: result["p3"]}
-    result_drivers = set(result_positions.values())
+    race_type = "sprint" if is_sprint else "race"
+
+    pred_list = prediction.get("positions", [])
+    result_list = result.get("positions", [])
+
+    # Build position maps (1-indexed)
+    pred_positions = {i + 1: driver for i, driver in enumerate(pred_list)}
+    result_positions = {i + 1: driver for i, driver in enumerate(result_list)}
+    result_drivers = set(result_list)
 
     points = 0
     breakdown = []
 
-    for pos in (1, 2, 3):
+    for pos in sorted(pred_positions.keys()):
         pred_driver = pred_positions[pos]
-        actual_driver = result_positions[pos]
+        actual_driver = result_positions.get(pos)
 
         if pred_driver == actual_driver:
-            earned = cfg["exact_position"][pos]
+            earned = cfg["exact_position"][race_type]
             points += earned
-            breakdown.append(f"+{earned} за точное P{pos} ({pred_driver})")
+            breakdown.append(f"+{earned} точное P{pos}: {pred_driver}")
+
+            if pos == 1:
+                bonus = cfg["p1_winner_bonus"][race_type]
+                points += bonus
+                breakdown.append(f"+{bonus} бонус за победителя!")
+
         elif pred_driver in result_drivers:
-            earned = cfg["podium_but_wrong_position"]
+            earned = cfg["top_hit_wrong_position"][race_type]
             points += earned
-            breakdown.append(f"+{earned} за {pred_driver} на подиуме (не та позиция)")
+            actual_pos = result_list.index(pred_driver) + 1
+            breakdown.append(f"+{earned} {pred_driver} в топе (P{actual_pos}, предсказано P{pos})")
         else:
-            penalty = cfg["wrong_podium_penalty"]
+            penalty = cfg["not_in_results_penalty"]
             points += penalty
-            breakdown.append(f"{penalty} за {pred_driver} — не попал на подиум")
-
-    # Bonuses
-    pred_drivers = set(pred_positions.values())
-    if pred_drivers == result_drivers:
-        if pred_positions == result_positions:
-            bonus = cfg["full_podium_bonus"]
-            points += bonus
-            breakdown.append(f"+{bonus} бонус за полный подиум в точном порядке!")
-        else:
-            bonus = cfg["all_drivers_bonus"]
-            points += bonus
-            breakdown.append(f"+{bonus} бонус за всех трёх гонщиков подиума!")
-
-    if is_sprint:
-        multiplier = cfg["sprint_multiplier"]
-        original = points
-        points = int(points * multiplier + (0.5 if points >= 0 else -0.5))
-        breakdown.append(f"× {multiplier} (спринт): {original} → {points}")
+            breakdown.append(f"{penalty} {pred_driver} — не финишировал")
 
     return {"total": points, "breakdown": breakdown}

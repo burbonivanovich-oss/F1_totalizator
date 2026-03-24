@@ -1,11 +1,13 @@
 """
-Prediction flow (ConversationHandler):
-  1. Show list of races where predictions are still open → user picks a race
-  2. Ask if this is for the sprint or the main race (if sprint weekend)
-  3. Pick P1 driver
-  4. Pick P2 driver
-  5. Pick P3 driver → save, confirm
+Prediction flow via Telegram Mini App (WebApp).
+
+Flow:
+  1. User presses "🏁 Прогноз" → show list of open races
+  2. User picks a race (and optionally sprint/race type)
+  3. Bot sends a WebApp button → user opens drag-and-drop interface
+  4. User submits → bot receives web_app_data → saves to DB
 """
+import json
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -18,18 +20,15 @@ from telegram.ext import (
 )
 
 import database as db
-from config import PREDICTION_LOCK_MINUTES
+from config import PREDICTION_LOCK_MINUTES, WEBAPP_URL
 from data.calendar_2026 import RACES_2026, RACE_BY_ID
-from data.drivers import DRIVERS, DRIVER_BY_ID, get_driver_short
+from data.drivers import DRIVER_BY_ID, get_driver_short
 
 # Conversation states
 (
     STATE_PICK_RACE,
-    STATE_PICK_TYPE,   # sprint or main race
-    STATE_PICK_P1,
-    STATE_PICK_P2,
-    STATE_PICK_P3,
-) = range(5)
+    STATE_PICK_TYPE,
+) = range(2)
 
 BACK = "predict:back"
 
@@ -37,7 +36,6 @@ BACK = "predict:back"
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _is_locked(race: dict, is_sprint: bool) -> bool:
-    """Returns True if the prediction window has closed."""
     key = "sprint_time" if is_sprint else "race_time"
     race_time = race.get(key)
     if not race_time:
@@ -47,41 +45,24 @@ def _is_locked(race: dict, is_sprint: bool) -> bool:
 
 
 def _open_races() -> list[dict]:
-    """Races whose main-race prediction is still open."""
     return [r for r in RACES_2026 if not _is_locked(r, is_sprint=False)]
 
 
-def _driver_buttons(exclude: list[str]) -> list[list[InlineKeyboardButton]]:
-    """2-column grid of driver buttons, skipping already-chosen drivers."""
-    buttons = []
-    row = []
-    for d in DRIVERS:
-        if d["id"] in exclude:
-            continue
-        row.append(InlineKeyboardButton(
-            f"#{d['number']} {d['name']}",
-            callback_data=f"drv:{d['id']}",
-        ))
-        if len(row) == 2:
-            buttons.append(row)
-            row = []
-    if row:
-        buttons.append(row)
-    buttons.append([InlineKeyboardButton("❌ Отмена", callback_data=BACK)])
-    return buttons
+def _webapp_url(race_id: str, is_sprint: bool, tg_id: int) -> str:
+    sprint_param = "1" if is_sprint else "0"
+    return f"{WEBAPP_URL}?race_id={race_id}&is_sprint={sprint_param}&tg_id={tg_id}"
 
 
 # ── Entry points ──────────────────────────────────────────────────────────────
 
 async def start_predict_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show list of open races."""
     open_races = _open_races()
 
     if not open_races:
         text = "❌ Приём прогнозов на все оставшиеся гонки закрыт."
-        kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("◀️ Главное меню", callback_data="main_menu")]
-        ])
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton("◀️ Главное меню", callback_data="main_menu")
+        ]])
         if update.callback_query:
             await update.callback_query.edit_message_text(text, reply_markup=kb)
         else:
@@ -123,17 +104,13 @@ async def pick_race(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["pred_race_id"] = race_id
 
-    # If sprint weekend and sprint not yet locked → ask which to predict
-    sprint_open = (
-        race["sprint_time"] is not None
-        and not _is_locked(race, is_sprint=True)
-    )
-    main_open = not _is_locked(race, is_sprint=False)
+    sprint_open = race["sprint_time"] is not None and not _is_locked(race, is_sprint=True)
+    main_open   = not _is_locked(race, is_sprint=False)
 
     if sprint_open and main_open:
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton("🟣 Спринт", callback_data="type:sprint"),
-             InlineKeyboardButton("🏁 Гонка", callback_data="type:race")],
+             InlineKeyboardButton("🏁 Гонка",  callback_data="type:race")],
             [InlineKeyboardButton("❌ Отмена", callback_data=BACK)],
         ])
         await query.edit_message_text(
@@ -142,9 +119,8 @@ async def pick_race(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return STATE_PICK_TYPE
 
-    # Only one option open — set automatically
-    context.user_data["pred_is_sprint"] = sprint_open and not main_open
-    return await _ask_p1(query, context)
+    is_sprint = sprint_open and not main_open
+    return await _send_webapp_button(query, context, race_id, is_sprint)
 
 
 async def pick_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -155,137 +131,102 @@ async def pick_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _back_to_menu(query)
         return ConversationHandler.END
 
-    context.user_data["pred_is_sprint"] = query.data == "type:sprint"
-    return await _ask_p1(query, context)
+    is_sprint = query.data == "type:sprint"
+    race_id   = context.user_data["pred_race_id"]
+    return await _send_webapp_button(query, context, race_id, is_sprint)
 
 
-async def _ask_p1(query, context: ContextTypes.DEFAULT_TYPE):
-    race_id = context.user_data["pred_race_id"]
-    is_sprint = context.user_data["pred_is_sprint"]
-    race = RACE_BY_ID[race_id]
+async def _send_webapp_button(query, context: ContextTypes.DEFAULT_TYPE, race_id: str, is_sprint: bool):
+    """Send a message with the WebApp launch button (or inline link if no URL configured)."""
+    from handlers.start import webapp_reply_keyboard
 
-    # Check for existing prediction
-    user = await db.get_user_by_telegram_id(query.from_user.id)
-    existing = await db.get_prediction(user["id"], race_id, is_sprint) if user else None
+    race   = RACE_BY_ID[race_id]
+    kind   = "спринт" if is_sprint else "гонку"
+    top_n  = 10 if is_sprint else 16
+    tg_id  = query.from_user.id
 
-    kind = "спринт" if is_sprint else "гонку"
-    header = (
-        f"<b>{race['flag']} {race['name']}</b> — {kind}\n\n"
-        f"Выбери гонщика на <b>P1</b> 🥇"
-    )
-    if existing:
-        header = (
-            f"✏️ Редактируешь прогноз\n{header}\n\n"
-            f"Текущий: {existing['p1']} / {existing['p2']} / {existing['p3']}"
+    if WEBAPP_URL:
+        # Send via ReplyKeyboard with WebAppInfo
+        await query.message.reply_text(
+            f"<b>{race['flag']} {race['name']}</b> — {kind}\n\n"
+            f"Нажми кнопку ниже, расставь топ-{top_n} гонщиков и подтверди прогноз.",
+            parse_mode="HTML",
+            reply_markup=webapp_reply_keyboard(race_id, is_sprint, tg_id),
+        )
+    else:
+        await query.message.reply_text(
+            f"<b>{race['flag']} {race['name']}</b> — {kind}\n\n"
+            "⚠️ WebApp URL не настроен. Укажи <code>WEBAPP_URL</code> в .env файле.",
+            parse_mode="HTML",
         )
 
-    context.user_data["pred_chosen"] = []
-    await query.edit_message_text(
-        header, parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(_driver_buttons([])),
-    )
-    return STATE_PICK_P1
+    return ConversationHandler.END
 
 
-async def pick_p1(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+# ── web_app_data handler ──────────────────────────────────────────────────────
 
-    if query.data == BACK:
-        await _back_to_menu(query)
-        return ConversationHandler.END
+async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle data submitted from the Telegram Mini App."""
+    raw = update.message.web_app_data.data
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, AttributeError):
+        await update.message.reply_text("❌ Неверный формат данных от Mini App.")
+        return
 
-    driver_id = query.data.split(":")[1]
-    if driver_id not in DRIVER_BY_ID:
-        await query.answer("Неизвестный гонщик, попробуй снова.")
-        return STATE_PICK_P1
-    context.user_data["pred_chosen"] = [driver_id]
+    race_id   = str(data.get("race_id", "")).upper()
+    is_sprint = bool(data.get("is_sprint", False))
+    positions = data.get("positions", [])
+    top_n     = 10 if is_sprint else 16
 
-    race = RACE_BY_ID[context.user_data["pred_race_id"]]
-    is_sprint = context.user_data["pred_is_sprint"]
-    kind = "спринт" if is_sprint else "гонку"
+    # Validate
+    race = RACE_BY_ID.get(race_id)
+    if not race:
+        await update.message.reply_text(f"❌ Неизвестная гонка: {race_id}")
+        return
 
-    await query.edit_message_text(
-        f"<b>{race['flag']} {race['name']}</b> — {kind}\n\n"
-        f"P1 🥇: <b>{get_driver_short(driver_id)}</b>\n\n"
-        f"Выбери гонщика на <b>P2</b> 🥈",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(_driver_buttons([driver_id])),
-    )
-    return STATE_PICK_P2
+    if _is_locked(race, is_sprint):
+        await update.message.reply_text("❌ Приём прогнозов на эту гонку уже закрыт.")
+        return
 
+    if not isinstance(positions, list) or len(positions) != top_n:
+        await update.message.reply_text(
+            f"❌ Нужно ровно {top_n} гонщиков, получено {len(positions)}."
+        )
+        return
 
-async def pick_p2(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+    positions = [str(p).upper() for p in positions]
+    if len(set(positions)) != top_n:
+        await update.message.reply_text("❌ Дублирующиеся гонщики в прогнозе.")
+        return
 
-    if query.data == BACK:
-        await _back_to_menu(query)
-        return ConversationHandler.END
+    for driver_id in positions:
+        if driver_id not in DRIVER_BY_ID:
+            await update.message.reply_text(f"❌ Неизвестный гонщик: {driver_id}")
+            return
 
-    driver_id = query.data.split(":")[1]
-    if driver_id not in DRIVER_BY_ID:
-        await query.answer("Неизвестный гонщик, попробуй снова.")
-        return STATE_PICK_P2
-    chosen = context.user_data["pred_chosen"]
-    chosen.append(driver_id)
-    context.user_data["pred_chosen"] = chosen
-
-    race = RACE_BY_ID[context.user_data["pred_race_id"]]
-    is_sprint = context.user_data["pred_is_sprint"]
-    kind = "спринт" if is_sprint else "гонку"
-
-    await query.edit_message_text(
-        f"<b>{race['flag']} {race['name']}</b> — {kind}\n\n"
-        f"P1 🥇: <b>{get_driver_short(chosen[0])}</b>\n"
-        f"P2 🥈: <b>{get_driver_short(driver_id)}</b>\n\n"
-        f"Выбери гонщика на <b>P3</b> 🥉",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(_driver_buttons(chosen)),
-    )
-    return STATE_PICK_P3
-
-
-async def pick_p3(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == BACK:
-        await _back_to_menu(query)
-        return ConversationHandler.END
-
-    driver_id = query.data.split(":")[1]
-    if driver_id not in DRIVER_BY_ID:
-        await query.answer("Неизвестный гонщик, попробуй снова.")
-        return STATE_PICK_P3
-    chosen = context.user_data["pred_chosen"]
-    chosen.append(driver_id)
-
-    race_id = context.user_data["pred_race_id"]
-    is_sprint = context.user_data["pred_is_sprint"]
-    race = RACE_BY_ID[race_id]
-
-    # Save to DB
-    tg_user = query.from_user
+    # Save
+    tg_user    = update.effective_user
     user_db_id = await db.upsert_user(tg_user.id, tg_user.username, tg_user.full_name)
-    await db.save_prediction(user_db_id, race_id, is_sprint, chosen[0], chosen[1], chosen[2])
+    await db.save_prediction(user_db_id, race_id, is_sprint, positions)
 
     kind = "спринт" if is_sprint else "гонку"
-    text = (
+    podium = "\n".join(
+        f"P{i+1}: {get_driver_short(d)}" for i, d in enumerate(positions[:3])
+    )
+    rest_count = len(positions) - 3
+
+    await update.message.reply_text(
         f"✅ <b>Прогноз сохранён!</b>\n\n"
         f"{race['flag']} <b>{race['name']}</b> — {kind}\n\n"
-        f"🥇 P1: {get_driver_short(chosen[0])}\n"
-        f"🥈 P2: {get_driver_short(chosen[1])}\n"
-        f"🥉 P3: {get_driver_short(chosen[2])}\n\n"
-        f"<i>Изменить прогноз можно до 5 минут до старта.</i>"
+        f"{podium}\n"
+        f"<i>... и ещё {rest_count} позиций</i>\n\n"
+        f"<i>Изменить прогноз можно до 5 минут до старта.</i>",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("◀️ Главное меню", callback_data="main_menu")
+        ]]),
     )
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🏁 Ещё прогноз", callback_data="menu:predict"),
-         InlineKeyboardButton("◀️ Меню", callback_data="main_menu")],
-    ])
-    await query.edit_message_text(text, parse_mode="HTML", reply_markup=kb)
-    context.user_data.clear()
-    return ConversationHandler.END
 
 
 # ── Cancel ────────────────────────────────────────────────────────────────────
@@ -329,21 +270,22 @@ async def show_my_predictions(update: Update, context: ContextTypes.DEFAULT_TYPE
             flag = race.get("flag", "")
             name = race.get("name", pred["race_id"])
             kind = "🟣 Спринт" if pred["is_sprint"] else "🏁 Гонка"
-            score_rec = scores.get((pred["race_id"], pred["is_sprint"]))
+            score_rec = scores.get((pred["race_id"], bool(pred["is_sprint"])))
             pts = f"+{score_rec['points']} очк." if score_rec else "ожидание результата"
+
+            positions = pred.get("positions", [])
+            podium_str = ", ".join(get_driver_short(d) for d in positions[:3])
 
             lines.append(
                 f"{flag} <b>{name}</b> {kind}\n"
-                f"  🥇 {get_driver_short(pred['p1'])}\n"
-                f"  🥈 {get_driver_short(pred['p2'])}\n"
-                f"  🥉 {get_driver_short(pred['p3'])}\n"
+                f"  {podium_str} …\n"
                 f"  📊 {pts}\n"
             )
         text = "\n".join(lines)
 
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("◀️ Главное меню", callback_data="main_menu")]
-    ])
+    kb = InlineKeyboardMarkup([[
+        InlineKeyboardButton("◀️ Главное меню", callback_data="main_menu")
+    ]])
     await query.edit_message_text(text, parse_mode="HTML", reply_markup=kb)
 
 
@@ -362,18 +304,6 @@ def build_predict_conversation() -> ConversationHandler:
             ],
             STATE_PICK_TYPE: [
                 CallbackQueryHandler(pick_type, pattern=r"^type:"),
-                CallbackQueryHandler(cancel, pattern=f"^{BACK}$"),
-            ],
-            STATE_PICK_P1: [
-                CallbackQueryHandler(pick_p1, pattern=r"^drv:"),
-                CallbackQueryHandler(cancel, pattern=f"^{BACK}$"),
-            ],
-            STATE_PICK_P2: [
-                CallbackQueryHandler(pick_p2, pattern=r"^drv:"),
-                CallbackQueryHandler(cancel, pattern=f"^{BACK}$"),
-            ],
-            STATE_PICK_P3: [
-                CallbackQueryHandler(pick_p3, pattern=r"^drv:"),
                 CallbackQueryHandler(cancel, pattern=f"^{BACK}$"),
             ],
         },

@@ -38,9 +38,7 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def process_results_and_score(
     race_id: str,
     is_sprint: bool,
-    p1: str,
-    p2: str,
-    p3: str,
+    positions: list[str],
     bot,
 ) -> str:
     """
@@ -49,7 +47,7 @@ async def process_results_and_score(
     """
     from data.scoring import calculate_score
 
-    await db.save_result(race_id, is_sprint, p1, p2, p3)
+    await db.save_result(race_id, is_sprint, positions)
     predictions = await db.get_all_predictions_for_race(race_id, is_sprint)
 
     if not predictions:
@@ -58,8 +56,8 @@ async def process_results_and_score(
     summary_lines = []
     for pred in predictions:
         result = calculate_score(
-            {"p1": pred["p1"], "p2": pred["p2"], "p3": pred["p3"]},
-            {"p1": p1, "p2": p2, "p3": p3},
+            {"positions": pred["positions"]},
+            {"positions": positions},
             is_sprint=is_sprint,
         )
         existing_score = await db.get_score(pred["user_id"], race_id, is_sprint)
@@ -67,7 +65,6 @@ async def process_results_and_score(
             pred["user_id"], race_id, is_sprint,
             result["total"], result["breakdown"],
         )
-        # Notify user only on first entry to avoid duplicate notifications
         if not existing_score:
             breakdown_text = "\n".join(result["breakdown"])
             try:
