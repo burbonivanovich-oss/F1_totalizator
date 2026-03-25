@@ -74,8 +74,11 @@ async def process_results_and_score(
                 f"Твои очки: <b>{result['total']}</b>\n\n{breakdown_text}",
                 parse_mode="HTML",
             )
-        except Exception:
-            pass
+        except Exception as e:
+            # Log notification failures instead of silently ignoring
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception(f"Failed to send score notification to user {pred['telegram_id']}")
 
         summary_lines.append(f"{pred['full_name']}: {result['total']} очк.")
 

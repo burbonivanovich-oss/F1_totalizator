@@ -112,7 +112,10 @@ async def get_prediction(user_id: int, race_id: str, is_sprint: bool) -> Optiona
             if not row:
                 return None
             result = dict(row)
-            result["positions"] = json.loads(result["positions"])
+            try:
+                result["positions"] = json.loads(result["positions"])
+            except json.JSONDecodeError:
+                return None  # Return None instead of crashing on corrupted data
             return result
 
 
@@ -127,8 +130,12 @@ async def get_user_predictions(user_id: int) -> list[dict]:
             results = []
             for r in rows:
                 row_dict = dict(r)
-                row_dict["positions"] = json.loads(row_dict["positions"])
-                results.append(row_dict)
+                try:
+                    row_dict["positions"] = json.loads(row_dict["positions"])
+                    results.append(row_dict)
+                except json.JSONDecodeError:
+                    # Skip corrupted records instead of crashing
+                    continue
             return results
 
 
@@ -176,8 +183,12 @@ async def get_all_predictions_for_race(race_id: str, is_sprint: bool) -> list[di
             results = []
             for r in rows:
                 row_dict = dict(r)
-                row_dict["positions"] = json.loads(row_dict["positions"])
-                results.append(row_dict)
+                try:
+                    row_dict["positions"] = json.loads(row_dict["positions"])
+                    results.append(row_dict)
+                except json.JSONDecodeError:
+                    # Skip corrupted records
+                    continue
             return results
 
 

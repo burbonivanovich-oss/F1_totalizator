@@ -40,7 +40,8 @@ async def _send_reminder(bot, race: dict, minutes_before: int, is_sprint: bool):
         try:
             await bot.send_message(user["telegram_id"], text, parse_mode="HTML")
         except Exception as e:
-            logger.warning("Could not notify user %s: %s", user["telegram_id"], e)
+            # Log full exception details instead of just warning
+            logger.exception("Failed to notify user %s", user["telegram_id"])
 
 
 def register_race_jobs(app: Application):

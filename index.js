@@ -125,15 +125,21 @@ If bothost.ru dashboard doesn't show Python option:
 try {
   if (fs.existsSync(path.join(__dirname, 'requirements.txt'))) {
     console.log('[F1 Bot Launcher] Installing Python dependencies...');
-    spawnSync('pip3', ['install', '-r', 'requirements.txt'], {
+    // Use python3 -m pip instead of pip3 to ensure same Python version
+    const pipResult = spawnSync('python3', ['-m', 'pip', 'install', '-r', 'requirements.txt'], {
       cwd: __dirname,
       stdio: 'pipe',
       timeout: 120000
     });
-    console.log('[F1 Bot Launcher] ✓ Dependencies installed\n');
+
+    if (pipResult.error || (pipResult.status !== 0 && pipResult.status !== null)) {
+      console.warn(`[F1 Bot Launcher] Warning: pip install failed with status ${pipResult.status}\n`);
+    } else {
+      console.log('[F1 Bot Launcher] ✓ Dependencies installed\n');
+    }
   }
 } catch (e) {
-  console.warn('[F1 Bot Launcher] Warning: Could not install dependencies\n');
+  console.warn(`[F1 Bot Launcher] Warning: Could not install dependencies: ${e.message}\n`);
 }
 
 // Now spawn the Python bot

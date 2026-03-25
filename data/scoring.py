@@ -70,8 +70,12 @@ def calculate_score(
         elif pred_driver in result_drivers:
             earned = cfg["top_hit_wrong_position"][race_type]
             points += earned
-            actual_pos = result_list.index(pred_driver) + 1
-            breakdown.append(f"+{earned} {pred_driver} в топе (P{actual_pos}, предсказано P{pos})")
+            try:
+                actual_pos = result_list.index(pred_driver) + 1
+                breakdown.append(f"+{earned} {pred_driver} в топе (P{actual_pos}, предсказано P{pos})")
+            except ValueError:
+                # Should not happen if logic is correct, but handle gracefully
+                breakdown.append(f"+{earned} {pred_driver} в топе (предсказано P{pos})")
         else:
             penalty = cfg["not_in_results_penalty"]
             points += penalty

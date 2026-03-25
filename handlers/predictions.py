@@ -91,7 +91,12 @@ async def pick_race(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _back_to_menu(query)
         return ConversationHandler.END
 
-    race_id = query.data.split(":")[1]
+    parts = query.data.split(":")
+    if len(parts) < 2:
+        await query.edit_message_text("Ошибка: неверный формат гонки")
+        return ConversationHandler.END
+
+    race_id = parts[1]
     race = RACE_BY_ID.get(race_id)
     if not race:
         await query.edit_message_text("Гонка не найдена.")
@@ -135,7 +140,11 @@ async def _send_webapp_button(query, context: ContextTypes.DEFAULT_TYPE, race_id
     """Send a message with the WebApp launch button."""
     from handlers.start import webapp_reply_keyboard
 
-    race  = RACE_BY_ID[race_id]
+    race = RACE_BY_ID.get(race_id)
+    if not race:
+        await query.message.reply_text(f"❌ Гонка не найдена: {race_id}")
+        return ConversationHandler.END
+
     kind  = "спринт" if is_sprint else "гонку"
     top_n = 10 if is_sprint else 16
     tg_id = query.from_user.id
@@ -261,7 +270,8 @@ async def show_my_predictions(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     predictions = await db.get_user_predictions(user["id"])
-    scores = {(s["race_id"], s["is_sprint"]): s for s in await db.get_user_scores(user["id"])}
+    # Convert is_sprint to int for consistent dict keys (database stores as 0/1, not bool)
+    scores = {(s["race_id"], int(s["is_sprint"])): s for s in await db.get_user_scores(user["id"])}
 
     if not predictions:
         text = "📋 У тебя пока нет прогнозов."
@@ -272,7 +282,8 @@ async def show_my_predictions(update: Update, context: ContextTypes.DEFAULT_TYPE
             flag = race.get("flag", "")
             name = race.get("name", pred["race_id"])
             kind = "🟣 Спринт" if pred["is_sprint"] else "🏁 Гонка"
-            score_rec = scores.get((pred["race_id"], bool(pred["is_sprint"])))
+            # Use same type (int) for lookup as used in dict creation
+            score_rec = scores.get((pred["race_id"], int(pred["is_sprint"])))
             pts = f"+{score_rec['points']} очк." if score_rec else "ожидание результата"
 
             positions = pred.get("positions", [])

@@ -53,7 +53,12 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    action = query.data.split(":")[1]
+    parts = query.data.split(":")
+    if len(parts) < 2:
+        await query.edit_message_text("Ошибка: неверный формат команды")
+        return
+
+    action = parts[1]
 
     if action == "calendar":
         from handlers.calendar_handler import show_calendar
