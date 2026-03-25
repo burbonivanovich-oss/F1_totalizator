@@ -17,34 +17,70 @@ const isBothost = process.env.BOTHOST || fs.existsSync('/.dockerenv');
 
 // Try to ensure Python 3 is available
 function ensurePython() {
+  // Check if Python3 is already available
   try {
-    spawnSync('python3', ['--version'], { stdio: 'pipe', timeout: 5000 });
+    const checkResult = spawnSync('python3', ['--version'], {
+      stdio: 'pipe',
+      timeout: 5000,
+      encoding: 'utf-8'
+    });
+
+    if (checkResult.error) {
+      throw checkResult.error;
+    }
+    if (checkResult.status !== 0 && checkResult.status !== null) {
+      throw new Error(`python3 --version exited with code ${checkResult.status}`);
+    }
+
     console.log('[F1 Bot Launcher] ✓ Python3 found');
     return true;
   } catch (e) {
     console.log('[F1 Bot Launcher] ✗ Python3 not found\n');
-
-    // Try to install Python
     console.log('[F1 Bot Launcher] Attempting to install Python3...\n');
 
+    // Try apt-get (Debian/Ubuntu)
     try {
-      // Try apt-get (Debian/Ubuntu)
-      console.log('[F1 Bot Launcher] Trying apt-get...');
-      spawnSync('apt-get', ['update'], { stdio: 'pipe', timeout: 60000 });
-      spawnSync('apt-get', ['install', '-y', 'python3', 'python3-pip'], { stdio: 'pipe', timeout: 120000 });
-      console.log('[F1 Bot Launcher] ✓ Python3 installed successfully\n');
+      console.log('[F1 Bot Launcher] Trying apt-get update...');
+      const updateResult = spawnSync('apt-get', ['update'], {
+        stdio: 'pipe',
+        timeout: 60000
+      });
+
+      if (updateResult.error || (updateResult.status !== 0 && updateResult.status !== null)) {
+        throw new Error('apt-get update failed');
+      }
+
+      console.log('[F1 Bot Launcher] Trying apt-get install...');
+      const installResult = spawnSync('apt-get', ['install', '-y', 'python3', 'python3-pip'], {
+        stdio: 'pipe',
+        timeout: 120000
+      });
+
+      if (installResult.error || (installResult.status !== 0 && installResult.status !== null)) {
+        throw new Error('apt-get install failed');
+      }
+
+      console.log('[F1 Bot Launcher] ✓ Python3 installed via apt-get\n');
       return true;
     } catch (aptError) {
-      console.log('[F1 Bot Launcher] apt-get failed\n');
+      console.log(`[F1 Bot Launcher] apt-get failed: ${aptError.message}\n`);
 
+      // Try apk (Alpine)
       try {
-        // Try apk (Alpine)
-        console.log('[F1 Bot Launcher] Trying apk...');
-        spawnSync('apk', ['add', '--no-cache', 'python3', 'py3-pip'], { stdio: 'pipe', timeout: 60000 });
-        console.log('[F1 Bot Launcher] ✓ Python3 installed successfully\n');
+        console.log('[F1 Bot Launcher] Trying apk add...');
+        const apkResult = spawnSync('apk', ['add', '--no-cache', 'python3', 'py3-pip'], {
+          stdio: 'pipe',
+          timeout: 60000
+        });
+
+        if (apkResult.error || (apkResult.status !== 0 && apkResult.status !== null)) {
+          throw new Error('apk add failed');
+        }
+
+        console.log('[F1 Bot Launcher] ✓ Python3 installed via apk\n');
         return true;
       } catch (apkError) {
-        console.log('[F1 Bot Launcher] apk failed\n');
+        console.log(`[F1 Bot Launcher] apk failed: ${apkError.message}\n`);
         return false;
       }
     }
