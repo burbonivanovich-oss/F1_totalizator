@@ -356,17 +356,17 @@
 
 <script>
 const TEAM_COLORS = {
-  "Red Bull Racing": ["#3671C6", "#1B2537"],
-  "Ferrari":         ["#E8002D", "#FFCC00"],
-  "Mercedes":        ["#27F4D2", "#1C1C1C"],
-  "McLaren":         ["#FF8000", "#000000"],
-  "Aston Martin":    ["#229971", "#002D40"],
-  "Alpine":          ["#FF87BC", "#0054A6"],
-  "Audi":            ["#C9213A", "#6B6B6B"],
-  "Williams":        ["#64C4FF", "#041E42"],
-  "Cadillac":        ["#C0C0C0", "#1C1C1C"],
-  "Racing Bulls":    ["#6692FF", "#C8001E"],
-  "Haas":            ["#FFFFFF", "#B6BABD"],
+  "Red Bull Racing": ["#3671C6", "#0A1628"],
+  "Ferrari":         ["#FF2D2D", "#FF9900"],
+  "Mercedes":        ["#00FFC8", "#005F55"],
+  "McLaren":         ["#FF8000", "#1A1A1A"],
+  "Aston Martin":    ["#00A86B", "#003D2B"],
+  "Alpine":          ["#FF6EB4", "#005BBB"],
+  "Audi":            ["#CC0000", "#888888"],
+  "Williams":        ["#80D4FF", "#003087"],
+  "Cadillac":        ["#D8D8D8", "#333333"],
+  "Racing Bulls":    ["#4D7FFF", "#A0001E"],
+  "Haas":            ["#E0E0E0", "#5A5A5A"],
 };
 
 const DRIVERS = [
@@ -410,7 +410,7 @@ function renderDriverList() {
     const pos   = idx + 1;
     const inTop = pos <= TOP_N;
     const colors = TEAM_COLORS[d.team] || ["#888", "#444"];
-    const dotStyle = `background:linear-gradient(135deg,${colors[0]} 50%,${colors[1]} 50%)`;
+    const dotStyle = `background:linear-gradient(135deg,${colors[0]} 0%,${colors[1]} 100%)`;
     const li    = document.createElement("li");
     li.className   = `driver-item ${inTop ? "in-top" : "out-top"}`;
     li.dataset.id  = id;

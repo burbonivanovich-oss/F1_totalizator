@@ -13,17 +13,17 @@ if (tg) {
 
 /* ── Team colors (two per team for split dot) ────────────────────────────── */
 const TEAM_COLORS = {
-  "Red Bull Racing": ["#3671C6", "#1B2537"],  // синий + тёмно-синий
-  "Ferrari":         ["#E8002D", "#FFCC00"],  // красный + жёлтый
-  "Mercedes":        ["#27F4D2", "#1C1C1C"],  // бирюзовый + чёрный
-  "McLaren":         ["#FF8000", "#000000"],  // оранжевый + чёрный
-  "Aston Martin":    ["#229971", "#002D40"],  // зелёный + тёмный
-  "Alpine":          ["#FF87BC", "#0054A6"],  // розовый + синий
-  "Audi":            ["#C9213A", "#6B6B6B"],  // красный + серый
-  "Williams":        ["#64C4FF", "#041E42"],  // голубой + тёмно-синий
-  "Cadillac":        ["#C0C0C0", "#1C1C1C"],  // серебро + чёрный
-  "Racing Bulls":    ["#6692FF", "#C8001E"],  // синий + красный
-  "Haas":            ["#FFFFFF", "#B6BABD"],  // белый + серый
+  "Red Bull Racing": ["#3671C6", "#0A1628"],  // синий → ночной
+  "Ferrari":         ["#FF2D2D", "#FF9900"],  // красный → оранжево-жёлтый
+  "Mercedes":        ["#00FFC8", "#005F55"],  // мятный → тёмный
+  "McLaren":         ["#FF8000", "#1A1A1A"],  // оранжевый → почти чёрный
+  "Aston Martin":    ["#00A86B", "#003D2B"],  // изумрудный → тёмно-зелёный
+  "Alpine":          ["#FF6EB4", "#005BBB"],  // розовый → синий
+  "Audi":            ["#CC0000", "#888888"],  // красный → тёплый серый
+  "Williams":        ["#80D4FF", "#003087"],  // небесный → тёмно-синий
+  "Cadillac":        ["#D8D8D8", "#333333"],  // светло-серый → тёмно-серый
+  "Racing Bulls":    ["#4D7FFF", "#A0001E"],  // голубовато-синий → бордо
+  "Haas":            ["#E0E0E0", "#5A5A5A"],  // светлый серый → средний серый
 };
 
 /* ── Parse URL params ────────────────────────────────────────────────────── */
@@ -118,7 +118,7 @@ function renderList() {
     const pos      = idx + 1;
     const inTop    = pos <= TOP_N;
     const colors   = TEAM_COLORS[driver.team] || ["#888", "#444"];
-    const dotStyle = `background:linear-gradient(135deg,${colors[0]} 50%,${colors[1]} 50%)`;
+    const dotStyle = `background:linear-gradient(135deg,${colors[0]} 0%,${colors[1]} 100%)`;
 
     const li = document.createElement("li");
     li.className    = `driver-item ${inTop ? "in-top" : "out-top"}`;
