@@ -3,7 +3,7 @@ Scheduled jobs:
   - 1 hour before race: reminder "последний час для прогнозов"
   - 5 minutes before race: notification "приём прогнозов закрыт"
 """
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 import logging
 
 from telegram.ext import Application
@@ -46,7 +46,7 @@ async def _send_reminder(bot, race: dict, minutes_before: int, is_sprint: bool):
 def register_race_jobs(app: Application):
     """Register reminder jobs for all upcoming races."""
     jq = app.job_queue
-    now = __import__("datetime").datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
 
     for race in RACES_2026:
         for is_sprint in (False, True):

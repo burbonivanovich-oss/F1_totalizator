@@ -27,7 +27,7 @@ def webapp_reply_keyboard(
 ) -> ReplyKeyboardMarkup:
     """Reply keyboard with a WebApp button for the given race."""
     sprint_param = "1" if is_sprint else "0"
-    url = f"{WEBAPP_URL}?race_id={race_id}&is_sprint={sprint_param}"
+    url = f"{WEBAPP_URL}?race_id={race_id}&is_sprint={sprint_param}&tg_id={tg_id}"
     if existing_positions:
         url += f"&positions={','.join(existing_positions)}"
     return ReplyKeyboardMarkup(

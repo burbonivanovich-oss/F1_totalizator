@@ -65,12 +65,6 @@ def main():
         pattern="^main_menu$",
     ))
 
-    # Individual feature callbacks (outside conversation)
-    app.add_handler(CallbackQueryHandler(show_leaderboard,    pattern="^menu:leaderboard$"))
-    app.add_handler(CallbackQueryHandler(show_my_predictions, pattern="^menu:my_predictions$"))
-    app.add_handler(CallbackQueryHandler(show_calendar,       pattern="^menu:calendar$"))
-    app.add_handler(CallbackQueryHandler(show_drivers,        pattern="^menu:drivers$"))
-
     logger.info("Starting polling...")
     app.run_polling(drop_pending_updates=True)
 

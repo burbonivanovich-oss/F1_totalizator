@@ -2,7 +2,7 @@
 Admin commands (restricted to ADMIN_IDS):
   /result <RACE_ID> <TYPE> <DRIVER1> <DRIVER2> ... <DRIVER_N>
     TYPE: race (16 drivers) | sprint (10 drivers)
-    Example: /result MON race VER LEC HAM RUS ALO STR NOR PIA SAI ALB HUL BOR COL ALB LAW LIN
+    Example: /result MON race VER LEC HAM RUS ALO STR NOR PIA SAI ALB HUL BOR COL GAS LAW LIN
     Example: /result MON sprint VER LEC HAM RUS ALO STR NOR PIA SAI ALB (10 total)
 """
 from telegram import Update

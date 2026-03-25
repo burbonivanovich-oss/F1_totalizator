@@ -48,11 +48,6 @@ def _open_races() -> list[dict]:
     return [r for r in RACES_2026 if not _is_locked(r, is_sprint=False)]
 
 
-def _webapp_url(race_id: str, is_sprint: bool, tg_id: int) -> str:
-    sprint_param = "1" if is_sprint else "0"
-    return f"{WEBAPP_URL}?race_id={race_id}&is_sprint={sprint_param}&tg_id={tg_id}"
-
-
 # ── Entry points ──────────────────────────────────────────────────────────────
 
 async def start_predict_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
