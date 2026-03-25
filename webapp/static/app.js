@@ -21,9 +21,9 @@ const TEAM_COLORS = {
   "Alpine":          ["#FF6EB4", "#005BBB"],  // розовый → синий
   "Audi":            ["#CC0000", "#888888"],  // красный → тёплый серый
   "Williams":        ["#80D4FF", "#003087"],  // небесный → тёмно-синий
-  "Cadillac":        ["#D8D8D8", "#333333"],  // светло-серый → тёмно-серый
-  "Racing Bulls":    ["#4D7FFF", "#A0001E"],  // голубой → бордо
-  "Haas":            ["#E0E0E0", "#5A5A5A"],  // светлый серый → средний серый
+  "Cadillac":        ["#FFFFFF", "#1C1C1C"],  // белый → чёрный
+  "Racing Bulls":    ["#FFFFFF", "#FFFFFF"],  // белый (solid)
+  "Haas":            ["#FFFFFF", "#1C1C1C", "#CC0000"],  // белый → чёрный → красный
 };
 
 /* ── Parse URL params ────────────────────────────────────────────────────── */
@@ -118,7 +118,10 @@ function renderList() {
     const pos      = idx + 1;
     const inTop    = pos <= TOP_N;
     const colors   = TEAM_COLORS[driver.team] || ["#888", "#444"];
-    const dotStyle = `background:linear-gradient(135deg,${colors[0]} 0%,${colors[1]} 100%)`;
+    const gradient = colors.length === 3
+      ? `linear-gradient(135deg,${colors[0]} 0%,${colors[1]} 50%,${colors[2]} 100%)`
+      : `linear-gradient(135deg,${colors[0]} 0%,${colors[1]} 100%)`;
+    const dotStyle = `background:${gradient}`;
 
     const li = document.createElement("li");
     li.className    = `driver-item ${inTop ? "in-top" : "out-top"}`;
