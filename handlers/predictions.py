@@ -137,29 +137,36 @@ async def pick_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _send_webapp_button(query, context: ContextTypes.DEFAULT_TYPE, race_id: str, is_sprint: bool):
-    """Send a message with the WebApp launch button (or inline link if no URL configured)."""
+    """Send a message with the WebApp launch button."""
     from handlers.start import webapp_reply_keyboard
 
-    race   = RACE_BY_ID[race_id]
-    kind   = "спринт" if is_sprint else "гонку"
-    top_n  = 10 if is_sprint else 16
-    tg_id  = query.from_user.id
+    race  = RACE_BY_ID[race_id]
+    kind  = "спринт" if is_sprint else "гонку"
+    top_n = 10 if is_sprint else 16
+    tg_id = query.from_user.id
 
-    if WEBAPP_URL:
-        # Send via ReplyKeyboard with WebAppInfo
-        await query.message.reply_text(
-            f"<b>{race['flag']} {race['name']}</b> — {kind}\n\n"
-            f"Нажми кнопку ниже, расставь топ-{top_n} гонщиков и подтверди прогноз.",
-            parse_mode="HTML",
-            reply_markup=webapp_reply_keyboard(race_id, is_sprint, tg_id),
-        )
-    else:
+    if not WEBAPP_URL:
         await query.message.reply_text(
             f"<b>{race['flag']} {race['name']}</b> — {kind}\n\n"
             "⚠️ WebApp URL не настроен. Укажи <code>WEBAPP_URL</code> в .env файле.",
             parse_mode="HTML",
         )
+        return ConversationHandler.END
 
+    # Load existing prediction to pre-fill the WebApp
+    existing_positions = []
+    user = await db.get_user_by_telegram_id(tg_id)
+    if user:
+        pred = await db.get_prediction(user["id"], race_id, is_sprint)
+        if pred:
+            existing_positions = pred["positions"]
+
+    await query.message.reply_text(
+        f"<b>{race['flag']} {race['name']}</b> — {kind}\n\n"
+        f"Расставь топ-{top_n} гонщиков и подтверди прогноз.",
+        parse_mode="HTML",
+        reply_markup=webapp_reply_keyboard(race_id, is_sprint, tg_id, existing_positions),
+    )
     return ConversationHandler.END
 
 

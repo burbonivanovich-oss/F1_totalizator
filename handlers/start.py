@@ -21,10 +21,15 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
-def webapp_reply_keyboard(race_id: str, is_sprint: bool, tg_id: int) -> ReplyKeyboardMarkup:
+def webapp_reply_keyboard(
+    race_id: str, is_sprint: bool, tg_id: int,
+    existing_positions: list[str] | None = None,
+) -> ReplyKeyboardMarkup:
     """Reply keyboard with a WebApp button for the given race."""
     sprint_param = "1" if is_sprint else "0"
-    url = f"{WEBAPP_URL}?race_id={race_id}&is_sprint={sprint_param}&tg_id={tg_id}"
+    url = f"{WEBAPP_URL}?race_id={race_id}&is_sprint={sprint_param}"
+    if existing_positions:
+        url += f"&positions={','.join(existing_positions)}"
     return ReplyKeyboardMarkup(
         [[KeyboardButton("📱 Открыть прогноз", web_app=WebAppInfo(url=url))]],
         resize_keyboard=True,
