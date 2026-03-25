@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>F1 WebApp Preview</title>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #1a1a2e;
+      --surface:    #16213e;
+      --surface2:   #0f3460;
+      --accent:     #e94560;
+      --text:       #eaeaea;
+      --text-muted: #8a8a9a;
+      --border:     #2a2a4a;
+      --top-n-bg:   rgba(233,69,96,0.12);
+      --handle:     #4a4a6a;
+      --radius:     12px;
+      --font:       -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    body.light {
+      --bg:         #f0f0f5;
+      --surface:    #ffffff;
+      --surface2:   #e4e4f0;
+      --text:       #1a1a1a;
+      --text-muted: #666;
+      --border:     #ddd;
+      --top-n-bg:   rgba(233,69,96,0.08);
+      --handle:     #aaa;
+    }
+
+    html, body { height: 100%; font-family: var(--font); background: var(--bg); color: var(--text); }
+
+    /* ── Theme toggle (demo only) ── */
+    #theme-toggle {
+      position: fixed; top: 8px; right: 8px; z-index: 999;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); font-size: 13px; padding: 4px 10px;
+      border-radius: 20px; cursor: pointer;
+    }
+
+    /* ── Demo selector ── */
+    #demo-bar {
+      position: sticky; top: 0; z-index: 200;
+      background: var(--surface2); border-bottom: 1px solid var(--border);
+      display: flex; gap: 6px; padding: 6px 12px; overflow-x: auto;
+    }
+    #demo-bar button {
+      white-space: nowrap; font-size: 12px; padding: 4px 12px;
+      border-radius: 20px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); cursor: pointer;
+    }
+    #demo-bar button.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+
+    /* ── Pages wrapper ── */
+    .page { display: none; }
+    .page.active { display: flex; flex-direction: column; min-height: calc(100vh - 37px); }
+
+    /* ══════════════════════════════════
+       PAGE 1 — Race list (race selector)
+    ══════════════════════════════════ */
+    .race-header {
+      padding: 14px 16px 10px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      font-size: 17px; font-weight: 700;
+    }
+    .race-list { flex: 1; overflow-y: auto; }
+    .race-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      cursor: pointer; transition: background 0.12s;
+    }
+    .race-item:hover { background: var(--surface2); }
+    .race-flag { font-size: 24px; }
+    .race-info { flex: 1; }
+    .race-name { font-size: 15px; font-weight: 600; }
+    .race-date { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .race-badges { display: flex; gap: 4px; margin-top: 4px; }
+    .badge {
+      font-size: 11px; padding: 1px 7px; border-radius: 10px; font-weight: 600;
+    }
+    .badge-race   { background: rgba(233,69,96,0.15);  color: var(--accent); }
+    .badge-sprint { background: rgba(102,146,255,0.15); color: #6692ff; }
+    .race-arrow { color: var(--text-muted); font-size: 18px; }
+
+    /* ══════════════════════════════════
+       PAGE 2 — Type selector
+    ══════════════════════════════════ */
+    .type-page {
+      padding: 20px 16px; gap: 16px;
+    }
+    .type-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .type-sub   { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+    .type-card {
+      padding: 20px; border-radius: var(--radius);
+      border: 2px solid var(--border); background: var(--surface);
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+    }
+    .type-card:hover { border-color: var(--accent); background: var(--top-n-bg); }
+    .type-card-icon { font-size: 28px; margin-bottom: 8px; }
+    .type-card-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+    .type-card-desc { font-size: 13px; color: var(--text-muted); }
+
+    /* ══════════════════════════════════
+       PAGE 3 — Drag-and-drop predictor
+    ══════════════════════════════════ */
+    #header {
+      position: sticky; top: 37px; z-index: 100;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 12px 16px 10px;
+    }
+    #race-title  { font-size: 17px; font-weight: 700; }
+    #race-meta   { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+    #deadline    { font-size: 12px; color: var(--accent); margin-top: 4px; }
+
+    #instruction {
+      padding: 8px 16px; font-size: 13px; color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+    #top-n-hint { font-weight: 600; color: var(--text); }
+
+    #list-wrapper { flex: 1; overflow-y: auto; padding-bottom: 80px; }
+    #driver-list, #driver-list-tail { list-style: none; }
+
+    .driver-item {
+      display: flex; align-items: center;
+      height: 52px; padding: 0 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      cursor: grab; user-select: none;
+      transition: background 0.12s;
+    }
+    .driver-item.in-top  { background: var(--top-n-bg); border-left: 3px solid var(--accent); }
+    .driver-item.out-top { opacity: 0.55; }
+    .driver-item.sortable-ghost  { opacity: 0.3; }
+    .driver-item.sortable-chosen { background: var(--surface2); }
+
+    .pos-badge {
+      min-width: 28px; height: 28px; border-radius: 6px;
+      background: var(--surface2); color: var(--text-muted);
+      font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      margin-right: 10px; flex-shrink: 0;
+    }
+    .driver-item.in-top .pos-badge { background: var(--accent); color: #fff; }
+
+    .team-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      flex-shrink: 0; margin-right: 10px;
+    }
+    .driver-info  { flex: 1; overflow: hidden; }
+    .driver-code  { font-size: 14px; font-weight: 700; }
+    .driver-name  { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .drag-handle  { color: var(--handle); font-size: 18px; padding-left: 8px; flex-shrink: 0; }
+
+    #divider {
+      display: flex; align-items: center;
+      padding: 6px 16px; gap: 8px; background: var(--bg);
+    }
+    #divider span { font-size: 11px; color: var(--accent); font-weight: 600; white-space: nowrap; }
+    #divider::before, #divider::after {
+      content: ""; flex: 1; height: 1px; background: var(--accent); opacity: 0.35;
+    }
+
+    #footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      padding: 12px 16px; background: var(--bg); border-top: 1px solid var(--border);
+    }
+    #confirm-btn {
+      width: 100%; height: 50px; border: none; border-radius: var(--radius);
+      background: var(--accent); color: #fff;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    #confirm-btn:active { opacity: 0.85; transform: scale(0.98); }
+
+    /* ══════════════════════════════════
+       PAGE 4 — Success screen
+    ══════════════════════════════════ */
+    .success-page {
+      align-items: center; justify-content: center;
+      padding: 32px 20px; text-align: center; gap: 12px;
+    }
+    .success-icon { font-size: 60px; }
+    .success-title { font-size: 22px; font-weight: 700; }
+    .success-sub { font-size: 14px; color: var(--text-muted); }
+    .podium-box {
+      background: var(--surface); border-radius: var(--radius);
+      padding: 16px 20px; width: 100%; text-align: left;
+      border: 1px solid var(--border); margin-top: 8px;
+    }
+    .podium-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+    .podium-row + .podium-row { border-top: 1px solid var(--border); }
+    .podium-pos { font-size: 18px; width: 28px; text-align: center; }
+    .podium-driver { font-weight: 600; font-size: 14px; }
+    .podium-team   { font-size: 11px; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+<button id="theme-toggle" onclick="toggleTheme()">☀️ Светлая</button>
+
+<!-- Demo page selector -->
+<div id="demo-bar">
+  <button class="active" onclick="showPage(0, this)">1. Выбор гонки</button>
+  <button onclick="showPage(1, this)">2. Тип (гонка/спринт)</button>
+  <button onclick="showPage(2, this)">3. Прогноз (drag-and-drop)</button>
+  <button onclick="showPage(3, this)">4. Успех</button>
+</div>
+
+<!-- ════════ PAGE 1: Race list ════════ -->
+<div class="page active" id="p0">
+  <div class="race-header">🏁 Выбери гонку для прогноза</div>
+  <div class="race-list">
+    <div class="race-item">
+      <div class="race-flag">🇯🇵</div>
+      <div class="race-info">
+        <div class="race-name">Japanese Grand Prix</div>
+        <div class="race-date">29 марта 2026 · Suzuka · 05:00 UTC</div>
+        <div class="race-badges">
+          <span class="badge badge-race">🏁 Гонка открыта</span>
+        </div>
+      </div>
+      <div class="race-arrow">›</div>
+    </div>
+    <div class="race-item">
+      <div class="race-flag">🇺🇸</div>
+      <div class="race-info">
+        <div class="race-name">Miami Grand Prix</div>
+        <div class="race-date">3 мая 2026 · Miami International Autodrome · 19:00 UTC</div>
+        <div class="race-badges">
+          <span class="badge badge-race">🏁 Гонка открыта</span>
+          <span class="badge badge-sprint">🟣 Спринт открыт</span>
+        </div>
+      </div>
+      <div class="race-arrow">›</div>
+    </div>
+    <div class="race-item">
+      <div class="race-flag">🇨🇦</div>
+      <div class="race-info">
+        <div class="race-name">Canadian Grand Prix</div>
+        <div class="race-date">24 мая 2026 · Circuit Gilles Villeneuve · 18:00 UTC</div>
+        <div class="race-badges">
+          <span class="badge badge-race">🏁 Гонка открыта</span>
+        </div>
+      </div>
+      <div class="race-arrow">›</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ PAGE 2: Sprint/Race type ════════ -->
+<div class="page" id="p1">
+  <div style="padding:16px; background:var(--surface); border-bottom:1px solid var(--border)">
+    <div style="font-size:13px;color:var(--text-muted)">🇺🇸 Miami Grand Prix</div>
+    <div style="font-size:18px;font-weight:700;margin-top:2px">Что прогнозируем?</div>
+  </div>
+  <div class="type-page page active" style="display:flex;flex-direction:column;padding:20px 16px;gap:12px;">
+    <div class="type-card" onclick="showPage(2, document.querySelectorAll('#demo-bar button')[2])">
+      <div class="type-card-icon">🏁</div>
+      <div class="type-card-title">Гонка</div>
+      <div class="type-card-desc">Предсказать топ-16 финишного протокола.<br>Дедлайн: 3 мая, 18:55 UTC</div>
+    </div>
+    <div class="type-card" onclick="showPage(2, document.querySelectorAll('#demo-bar button')[2])">
+      <div class="type-card-icon">🟣</div>
+      <div class="type-card-title">Спринт</div>
+      <div class="type-card-desc">Предсказать топ-10 спринтового финиша.<br>Дедлайн: 2 мая, 11:55 UTC</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ PAGE 3: Drag-and-drop ════════ -->
+<div class="page" id="p2">
+  <div id="header">
+    <div id="race-title">🇯🇵 Japanese Grand Prix</div>
+    <div id="race-meta">🏁 Гонка</div>
+    <div id="deadline">⏱ Закрытие через 3ч 22м 41с</div>
+  </div>
+
+  <div id="instruction">
+    Перетащи гонщиков, расставив их по порядку финиша.
+    <span id="top-n-hint">Учитываются первые 16 позиций.</span>
+  </div>
+
+  <div id="list-wrapper">
+    <ul id="driver-list"></ul>
+    <div id="divider"><span>— ниже не учитывается —</span></div>
+    <ul id="driver-list-tail"></ul>
+  </div>
+
+  <div id="footer">
+    <button id="confirm-btn" onclick="onConfirm()">✅ Подтвердить прогноз</button>
+  </div>
+</div>
+
+<!-- ════════ PAGE 4: Success ════════ -->
+<div class="page" id="p3">
+  <div class="success-page page active" style="display:flex;flex-direction:column;">
+    <div class="success-icon">✅</div>
+    <div class="success-title">Прогноз сохранён!</div>
+    <div class="success-sub">🇯🇵 Japanese Grand Prix · Гонка</div>
+    <div class="podium-box">
+      <div class="podium-row">
+        <div class="podium-pos">🥇</div>
+        <div>
+          <div class="podium-driver">VER — Verstappen</div>
+          <div class="podium-team">Red Bull Racing</div>
+        </div>
+      </div>
+      <div class="podium-row">
+        <div class="podium-pos">🥈</div>
+        <div>
+          <div class="podium-driver">NOR — Norris</div>
+          <div class="podium-team">McLaren</div>
+        </div>
+      </div>
+      <div class="podium-row">
+        <div class="podium-pos">🥉</div>
+        <div>
+          <div class="podium-driver">LEC — Leclerc</div>
+          <div class="podium-team">Ferrari</div>
+        </div>
+      </div>
+      <div class="podium-row" style="opacity:0.55">
+        <div class="podium-pos" style="font-size:13px;color:var(--text-muted)">P4</div>
+        <div>
+          <div class="podium-driver">HAM — Hamilton</div>
+          <div class="podium-team">Ferrari</div>
+        </div>
+      </div>
+      <div class="podium-row" style="opacity:0.55">
+        <div class="podium-pos" style="font-size:13px;color:var(--text-muted)">P5</div>
+        <div>
+          <div class="podium-driver">RUS — Russell</div>
+          <div class="podium-team">Mercedes</div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:10px;font-size:12px;color:var(--text-muted)">
+        … и ещё 11 позиций
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:4px">
+      Изменить прогноз можно до 5 минут до старта.
+    </div>
+  </div>
+</div>
+
+<script>
+const TEAM_COLORS = {
+  "Red Bull Racing": "#3671C6", "Ferrari": "#E8002D", "Mercedes": "#27F4D2",
+  "McLaren": "#FF8000", "Aston Martin": "#229971", "Alpine": "#FF87BC",
+  "Audi": "#C9213A", "Williams": "#64C4FF", "Cadillac": "#B0B0B0",
+  "Racing Bulls": "#6692FF", "Haas": "#B6BABD",
+};
+
+const DRIVERS = [
+  {id:"VER",name:"Verstappen",  full_name:"Max Verstappen",         team:"Red Bull Racing"},
+  {id:"HAD",name:"Hadjar",     full_name:"Isack Hadjar",            team:"Red Bull Racing"},
+  {id:"LEC",name:"Leclerc",    full_name:"Charles Leclerc",         team:"Ferrari"},
+  {id:"HAM",name:"Hamilton",   full_name:"Lewis Hamilton",          team:"Ferrari"},
+  {id:"RUS",name:"Russell",    full_name:"George Russell",          team:"Mercedes"},
+  {id:"ANT",name:"Antonelli",  full_name:"Andrea Kimi Antonelli",   team:"Mercedes"},
+  {id:"NOR",name:"Norris",     full_name:"Lando Norris",            team:"McLaren"},
+  {id:"PIA",name:"Piastri",    full_name:"Oscar Piastri",           team:"McLaren"},
+  {id:"ALO",name:"Alonso",     full_name:"Fernando Alonso",         team:"Aston Martin"},
+  {id:"STR",name:"Stroll",     full_name:"Lance Stroll",            team:"Aston Martin"},
+  {id:"GAS",name:"Gasly",      full_name:"Pierre Gasly",            team:"Alpine"},
+  {id:"COL",name:"Colapinto",  full_name:"Franco Colapinto",        team:"Alpine"},
+  {id:"HUL",name:"Hulkenberg", full_name:"Nico Hulkenberg",         team:"Audi"},
+  {id:"BOR",name:"Bortoleto",  full_name:"Gabriel Bortoleto",       team:"Audi"},
+  {id:"SAI",name:"Sainz",      full_name:"Carlos Sainz",            team:"Williams"},
+  {id:"ALB",name:"Albon",      full_name:"Alexander Albon",         team:"Williams"},
+  {id:"PER",name:"Perez",      full_name:"Sergio Perez",            team:"Cadillac"},
+  {id:"BOT",name:"Bottas",     full_name:"Valtteri Bottas",         team:"Cadillac"},
+  {id:"LAW",name:"Lawson",     full_name:"Liam Lawson",             team:"Racing Bulls"},
+  {id:"LIN",name:"Lindblad",   full_name:"Arvid Lindblad",          team:"Racing Bulls"},
+  {id:"OCO",name:"Ocon",       full_name:"Esteban Ocon",            team:"Haas"},
+  {id:"BEA",name:"Bearman",    full_name:"Oliver Bearman",          team:"Haas"},
+];
+
+const TOP_N = 16;
+let orderedIds = DRIVERS.map(d => d.id);
+let sortTop, sortTail;
+
+function renderDriverList() {
+  const $list = document.getElementById("driver-list");
+  const $tail = document.getElementById("driver-list-tail");
+  const dMap  = Object.fromEntries(DRIVERS.map(d => [d.id, d]));
+  $list.innerHTML = "";
+  $tail.innerHTML = "";
+
+  orderedIds.forEach((id, idx) => {
+    const d     = dMap[id];
+    const pos   = idx + 1;
+    const inTop = pos <= TOP_N;
+    const color = TEAM_COLORS[d.team] || "#888";
+    const li    = document.createElement("li");
+    li.className   = `driver-item ${inTop ? "in-top" : "out-top"}`;
+    li.dataset.id  = id;
+    li.innerHTML   = `
+      <div class="pos-badge">${pos}</div>
+      <div class="team-dot" style="background:${color}"></div>
+      <div class="driver-info">
+        <div class="driver-code">${d.id}</div>
+        <div class="driver-name">${d.full_name}</div>
+      </div>
+      <div class="drag-handle">⠿</div>`;
+    (inTop ? $list : $tail).appendChild(li);
+  });
+
+  if (sortTop) { sortTop.destroy(); sortTail.destroy(); }
+  const opts = {
+    animation: 150, handle: ".drag-handle",
+    ghostClass: "sortable-ghost", chosenClass: "sortable-chosen",
+    group: "drivers",
+    onEnd() {
+      const topIds  = [...document.querySelectorAll("#driver-list  .driver-item")].map(el => el.dataset.id);
+      const tailIds = [...document.querySelectorAll("#driver-list-tail .driver-item")].map(el => el.dataset.id);
+      orderedIds = [...topIds, ...tailIds];
+      renderDriverList();
+    }
+  };
+  sortTop  = Sortable.create(document.getElementById("driver-list"),      opts);
+  sortTail = Sortable.create(document.getElementById("driver-list-tail"), opts);
+}
+
+function showPage(idx, btn) {
+  document.querySelectorAll(".page").forEach((p, i) => p.classList.toggle("active", i === idx));
+  document.querySelectorAll("#demo-bar button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  if (idx === 2) renderDriverList();
+}
+
+function onConfirm() {
+  const topIds = [...document.querySelectorAll("#driver-list .driver-item")].map(el => el.dataset.id);
+  alert("sendData: " + JSON.stringify({race_id:"JPN", is_sprint:false, positions: topIds.slice(0, TOP_N)}, null, 2));
+}
+
+function toggleTheme() {
+  const isLight = document.body.classList.toggle("light");
+  document.getElementById("theme-toggle").textContent = isLight ? "🌙 Тёмная" : "☀️ Светлая";
+}
+
+// Countdown demo
+let s = 3600 * 3 + 22 * 60 + 41;
+setInterval(() => {
+  s = Math.max(0, s - 1);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  const el = document.getElementById("deadline");
+  if (el) el.textContent = s > 0
+    ? `⏱ Закрытие через ${h > 0 ? h+"ч " : ""}${m}м ${sec}с`
+    : "⛔ Приём закрыт";
+}, 1000);
+</script>
+</body>
+</html>
