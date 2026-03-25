@@ -153,8 +153,9 @@
     .driver-item.in-top .pos-badge { background: var(--accent); color: #fff; }
 
     .team-dot {
-      width: 8px; height: 8px; border-radius: 50%;
+      width: 14px; height: 14px; border-radius: 50%;
       flex-shrink: 0; margin-right: 10px;
+      border: 1px solid rgba(255,255,255,0.15);
     }
     .driver-info  { flex: 1; overflow: hidden; }
     .driver-code  { font-size: 14px; font-weight: 700; }
@@ -355,10 +356,17 @@
 
 <script>
 const TEAM_COLORS = {
-  "Red Bull Racing": "#3671C6", "Ferrari": "#E8002D", "Mercedes": "#27F4D2",
-  "McLaren": "#FF8000", "Aston Martin": "#229971", "Alpine": "#FF87BC",
-  "Audi": "#C9213A", "Williams": "#64C4FF", "Cadillac": "#B0B0B0",
-  "Racing Bulls": "#6692FF", "Haas": "#B6BABD",
+  "Red Bull Racing": ["#3671C6", "#1B2537"],
+  "Ferrari":         ["#E8002D", "#FFCC00"],
+  "Mercedes":        ["#27F4D2", "#1C1C1C"],
+  "McLaren":         ["#FF8000", "#000000"],
+  "Aston Martin":    ["#229971", "#002D40"],
+  "Alpine":          ["#FF87BC", "#0054A6"],
+  "Audi":            ["#C9213A", "#6B6B6B"],
+  "Williams":        ["#64C4FF", "#041E42"],
+  "Cadillac":        ["#C0C0C0", "#1C1C1C"],
+  "Racing Bulls":    ["#6692FF", "#C8001E"],
+  "Haas":            ["#FFFFFF", "#B6BABD"],
 };
 
 const DRIVERS = [
@@ -401,13 +409,14 @@ function renderDriverList() {
     const d     = dMap[id];
     const pos   = idx + 1;
     const inTop = pos <= TOP_N;
-    const color = TEAM_COLORS[d.team] || "#888";
+    const colors = TEAM_COLORS[d.team] || ["#888", "#444"];
+    const dotStyle = `background:linear-gradient(135deg,${colors[0]} 50%,${colors[1]} 50%)`;
     const li    = document.createElement("li");
     li.className   = `driver-item ${inTop ? "in-top" : "out-top"}`;
     li.dataset.id  = id;
     li.innerHTML   = `
       <div class="pos-badge">${pos}</div>
-      <div class="team-dot" style="background:${color}"></div>
+      <div class="team-dot" style="${dotStyle}"></div>
       <div class="driver-info">
         <div class="driver-code">${d.id}</div>
         <div class="driver-name">${d.full_name}</div>

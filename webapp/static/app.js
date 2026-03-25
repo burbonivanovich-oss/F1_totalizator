@@ -11,19 +11,19 @@ if (tg) {
   }
 }
 
-/* ── Team colors ─────────────────────────────────────────────────────────── */
+/* ── Team colors (two per team for split dot) ────────────────────────────── */
 const TEAM_COLORS = {
-  "Red Bull Racing": "#3671C6",
-  "Ferrari":         "#E8002D",
-  "Mercedes":        "#27F4D2",
-  "McLaren":         "#FF8000",
-  "Aston Martin":    "#229971",
-  "Alpine":          "#FF87BC",
-  "Audi":            "#C9213A",
-  "Williams":        "#64C4FF",
-  "Cadillac":        "#B0B0B0",
-  "Racing Bulls":    "#6692FF",
-  "Haas":            "#B6BABD",
+  "Red Bull Racing": ["#3671C6", "#1B2537"],  // синий + тёмно-синий
+  "Ferrari":         ["#E8002D", "#FFCC00"],  // красный + жёлтый
+  "Mercedes":        ["#27F4D2", "#1C1C1C"],  // бирюзовый + чёрный
+  "McLaren":         ["#FF8000", "#000000"],  // оранжевый + чёрный
+  "Aston Martin":    ["#229971", "#002D40"],  // зелёный + тёмный
+  "Alpine":          ["#FF87BC", "#0054A6"],  // розовый + синий
+  "Audi":            ["#C9213A", "#6B6B6B"],  // красный + серый
+  "Williams":        ["#64C4FF", "#041E42"],  // голубой + тёмно-синий
+  "Cadillac":        ["#C0C0C0", "#1C1C1C"],  // серебро + чёрный
+  "Racing Bulls":    ["#6692FF", "#C8001E"],  // синий + красный
+  "Haas":            ["#FFFFFF", "#B6BABD"],  // белый + серый
 };
 
 /* ── Parse URL params ────────────────────────────────────────────────────── */
@@ -117,7 +117,8 @@ function renderList() {
 
     const pos      = idx + 1;
     const inTop    = pos <= TOP_N;
-    const color    = TEAM_COLORS[driver.team] || "#888";
+    const colors   = TEAM_COLORS[driver.team] || ["#888", "#444"];
+    const dotStyle = `background:linear-gradient(135deg,${colors[0]} 50%,${colors[1]} 50%)`;
 
     const li = document.createElement("li");
     li.className    = `driver-item ${inTop ? "in-top" : "out-top"}`;
@@ -125,7 +126,7 @@ function renderList() {
 
     li.innerHTML = `
       <div class="pos-badge">${pos}</div>
-      <div class="team-dot" style="background:${color}"></div>
+      <div class="team-dot" style="${dotStyle}"></div>
       <div class="driver-info">
         <div class="driver-code">${driver.id}</div>
         <div class="driver-name">${driver.full_name}</div>

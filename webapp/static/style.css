@@ -149,11 +149,12 @@ html, body {
 }
 
 .team-dot {
-  width: 8px;
-  height: 8px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   flex-shrink: 0;
   margin-right: 10px;
+  border: 1px solid rgba(255,255,255,0.15);
 }
 
 .driver-info {
