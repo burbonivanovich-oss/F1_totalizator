@@ -1,4 +1,9 @@
 import logging
+import os
+import sys
+
+# Ensure project root is in Python path regardless of working directory
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from telegram.ext import (
     Application,
