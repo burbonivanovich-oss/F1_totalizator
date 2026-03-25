@@ -105,7 +105,7 @@ console.log('[F1 Bot Launcher] Starting Python bot...\n');
 const pythonProcess = spawn('python3', [path.join(__dirname, 'bot.py')], {
   stdio: 'inherit',
   cwd: __dirname,
-  shell: false
+  shell: true  // Use shell to properly resolve python3 from PATH
 });
 
 pythonProcess.on('error', (err) => {
