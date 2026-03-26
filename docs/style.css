@@ -177,10 +177,7 @@ html, body {
 }
 
 .drag-handle {
-  color: var(--handle);
-  font-size: 18px;
-  padding-left: 8px;
-  flex-shrink: 0;
+  display: none;
 }
 
 /* ── Divider ─────────────────────────────────────────────────────────────── */

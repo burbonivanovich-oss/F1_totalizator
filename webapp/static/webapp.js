@@ -187,7 +187,6 @@ function renderList() {
 function initSortable() {
   const opts = {
     animation: 150,
-    handle: ".drag-handle",
     ghostClass: "sortable-ghost",
     chosenClass: "sortable-chosen",
     group: "drivers",
