@@ -1,15 +1,35 @@
 import os
 import sys
-# Ensure project root (parent of handlers/) is always in sys.path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import importlib.util
+
+# Ensure project root is in sys.path (handles all container/deployment scenarios)
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _root not in sys.path:
+    sys.path.insert(0, _root)
+
+
+def _load(module_name: str):
+    """Load a data module by absolute file path — immune to sys.path issues."""
+    path = os.path.join(_root, 'data', module_name + '.py')
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+try:
+    from data.calendar_2026 import RACES_2026
+    from data.drivers import DRIVERS
+except ImportError:
+    _cal = _load('calendar_2026')
+    _drv = _load('drivers')
+    RACES_2026 = _cal.RACES_2026
+    DRIVERS = _drv.DRIVERS
 
 from datetime import datetime, timezone
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-
-from data.calendar_2026 import RACES_2026
-from data.drivers import DRIVERS
 
 
 def _race_status(race: dict) -> str:

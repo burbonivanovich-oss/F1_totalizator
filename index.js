@@ -10,7 +10,7 @@ const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-console.log('[F1 Bot Launcher] Starting bot wrapper...\n');
+console.log('[F1 Bot Launcher v4] Starting bot wrapper...\n');
 
 // Check if we're in a bothost.ru environment
 const isBothost = process.env.BOTHOST || fs.existsSync('/.dockerenv');
