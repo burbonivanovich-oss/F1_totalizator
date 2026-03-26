@@ -347,6 +347,7 @@ def build_predict_conversation() -> ConversationHandler:
         },
         fallbacks=[
             CommandHandler("cancel", cancel),
+            CommandHandler("start", cancel),   # /start always exits conversation
             CallbackQueryHandler(cancel, pattern=f"^{BACK}$"),
             # Allow escaping conversation by pressing any main-menu button
             CallbackQueryHandler(_exit_to_menu, pattern=r"^(menu:|main_menu$)"),
