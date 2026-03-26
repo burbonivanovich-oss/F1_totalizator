@@ -13,7 +13,7 @@ import logging
 
 from telegram.ext import Application
 
-from data.calendar_2026 import RACES_2026
+from handlers.calendar_handler import RACES_2026
 
 logger = logging.getLogger(__name__)
 

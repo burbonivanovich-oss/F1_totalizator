@@ -26,8 +26,7 @@ from telegram.ext import (
 
 import database as db
 from config import PREDICTION_LOCK_MINUTES, WEBAPP_URL
-from data.calendar_2026 import RACES_2026, RACE_BY_ID
-from data.drivers import DRIVER_BY_ID, get_driver_short
+from handlers.calendar_handler import RACES_2026, RACE_BY_ID, DRIVER_BY_ID, get_driver_short
 
 # Conversation states
 (

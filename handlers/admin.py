@@ -14,8 +14,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from config import ADMIN_IDS
-from data.calendar_2026 import RACE_BY_ID
-from data.drivers import DRIVER_BY_ID
+from handlers.calendar_handler import RACE_BY_ID, DRIVER_BY_ID
 from handlers.leaderboard import process_results_and_score
 
 
