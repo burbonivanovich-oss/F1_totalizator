@@ -5,6 +5,7 @@ import sys
 # Ensure project root is in Python path regardless of working directory
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from telegram import Update
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -75,7 +76,10 @@ def main():
     app.add_handler(CallbackQueryHandler(_stale_callback))
 
     logger.info("Starting polling...")
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling(
+        drop_pending_updates=True,
+        allowed_updates=Update.ALL_TYPES,  # explicitly request ALL update types
+    )
 
 
 if __name__ == "__main__":
