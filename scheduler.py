@@ -3,6 +3,11 @@ Scheduled jobs:
   - 1 hour before race: reminder "последний час для прогнозов"
   - 5 minutes before race: notification "приём прогнозов закрыт"
 """
+import os
+import sys
+# Ensure project root is always in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from datetime import datetime, timedelta, timezone
 import logging
 

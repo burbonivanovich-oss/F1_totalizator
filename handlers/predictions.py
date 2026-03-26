@@ -7,6 +7,11 @@ Flow:
   3. Bot sends a WebApp button → user opens drag-and-drop interface
   4. User submits → bot receives web_app_data → saves to DB
 """
+import os
+import sys
+# Ensure project root (parent of handlers/) is always in sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import json
 from datetime import datetime, timezone, timedelta
 from typing import Optional

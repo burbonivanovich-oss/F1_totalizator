@@ -5,6 +5,11 @@ Admin commands (restricted to ADMIN_IDS):
     Example: /result MON race VER LEC HAM RUS ALO STR NOR PIA SAI ALB HUL BOR COL GAS LAW LIN
     Example: /result MON sprint VER LEC HAM RUS ALO STR NOR PIA SAI ALB (10 total)
 """
+import os
+import sys
+# Ensure project root (parent of handlers/) is always in sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
