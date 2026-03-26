@@ -126,14 +126,26 @@ try {
   if (fs.existsSync(path.join(__dirname, 'requirements.txt'))) {
     console.log('[F1 Bot Launcher] Installing Python dependencies...');
     // Use python3 -m pip instead of pip3 to ensure same Python version
-    const pipResult = spawnSync('python3', ['-m', 'pip', 'install', '-r', 'requirements.txt'], {
+    const pipResult = spawnSync('python3', ['-m', 'pip', 'install', '--user', '-r', 'requirements.txt'], {
       cwd: __dirname,
-      stdio: 'pipe',
-      timeout: 120000
+      stdio: 'inherit',
+      timeout: 300000
     });
 
     if (pipResult.error || (pipResult.status !== 0 && pipResult.status !== null)) {
       console.warn(`[F1 Bot Launcher] Warning: pip install failed with status ${pipResult.status}\n`);
+      // Try with --break-system-packages flag (needed on newer Python/Debian)
+      console.log('[F1 Bot Launcher] Retrying with --break-system-packages...');
+      const pipResult2 = spawnSync('python3', ['-m', 'pip', 'install', '--break-system-packages', '-r', 'requirements.txt'], {
+        cwd: __dirname,
+        stdio: 'inherit',
+        timeout: 300000
+      });
+      if (pipResult2.error || (pipResult2.status !== 0 && pipResult2.status !== null)) {
+        console.warn(`[F1 Bot Launcher] Warning: pip install retry also failed with status ${pipResult2.status}\n`);
+      } else {
+        console.log('[F1 Bot Launcher] ✓ Dependencies installed (with --break-system-packages)\n');
+      }
     } else {
       console.log('[F1 Bot Launcher] ✓ Dependencies installed\n');
     }
