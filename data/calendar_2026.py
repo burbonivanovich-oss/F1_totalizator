@@ -1,7 +1,7 @@
 from datetime import datetime
 import pytz
 
-# All race_time values are in UTC
+# F1 2026 race calendar — all race_time values are in UTC
 RACES_2026 = [
     {
         "id": "AUS",
