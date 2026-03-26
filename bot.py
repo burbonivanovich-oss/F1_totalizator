@@ -65,6 +65,15 @@ def main():
         pattern="^main_menu$",
     ))
 
+    # Catch stale callbacks (race/type buttons from a previous bot session).
+    # Without this, pressing them after a restart causes silent nothing.
+    async def _stale_callback(update, context):
+        await update.callback_query.answer(
+            "⏱ Сессия устарела — нажми /start", show_alert=True
+        )
+
+    app.add_handler(CallbackQueryHandler(_stale_callback))
+
     logger.info("Starting polling...")
     app.run_polling(drop_pending_updates=True)
 
