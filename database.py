@@ -166,7 +166,10 @@ async def get_result(race_id: str, is_sprint: bool) -> Optional[dict]:
             if not row:
                 return None
             result = dict(row)
-            result["positions"] = json.loads(result["positions"])
+            try:
+                result["positions"] = json.loads(result["positions"])
+            except json.JSONDecodeError:
+                return None
             return result
 
 

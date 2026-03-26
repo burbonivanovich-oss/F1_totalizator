@@ -132,7 +132,10 @@ async def pick_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     is_sprint = query.data == "type:sprint"
-    race_id   = context.user_data["pred_race_id"]
+    race_id   = context.user_data.get("pred_race_id")
+    if not race_id:
+        await query.edit_message_text("Ошибка: сессия истекла. Начни заново /start")
+        return ConversationHandler.END
     return await _send_webapp_button(query, context, race_id, is_sprint)
 
 

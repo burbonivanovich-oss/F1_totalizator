@@ -41,11 +41,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await db.upsert_user(user.id, user.username, user.full_name)
 
-    await update.message.reply_text(
-        MAIN_MENU_TEXT,
-        parse_mode="HTML",
-        reply_markup=main_menu_keyboard(),
-    )
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(
+            MAIN_MENU_TEXT,
+            parse_mode="HTML",
+            reply_markup=main_menu_keyboard(),
+        )
+    else:
+        await update.message.reply_text(
+            MAIN_MENU_TEXT,
+            parse_mode="HTML",
+            reply_markup=main_menu_keyboard(),
+        )
 
 
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
