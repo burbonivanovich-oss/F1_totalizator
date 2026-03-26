@@ -258,6 +258,24 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+async def _exit_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Exit conversation state and properly route menu callbacks.
+
+    Handles the case when user is stuck in a conversation state and presses
+    a main-menu button — without this, ConversationHandler would silently
+    swallow the callback and nothing would happen.
+    """
+    context.user_data.clear()
+    query = update.callback_query
+    if query.data == "main_menu":
+        from handlers.start import start
+        await start(update, context)
+    else:
+        from handlers.start import menu_callback
+        await menu_callback(update, context)
+    return ConversationHandler.END
+
+
 async def _back_to_menu(query):
     from handlers.start import MAIN_MENU_TEXT, main_menu_keyboard
     await query.edit_message_text(
@@ -330,6 +348,8 @@ def build_predict_conversation() -> ConversationHandler:
         fallbacks=[
             CommandHandler("cancel", cancel),
             CallbackQueryHandler(cancel, pattern=f"^{BACK}$"),
+            # Allow escaping conversation by pressing any main-menu button
+            CallbackQueryHandler(_exit_to_menu, pattern=r"^(menu:|main_menu$)"),
         ],
         per_message=False,
     )
