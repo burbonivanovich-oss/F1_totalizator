@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>F1 Тотализатор 2026</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
+</head>
+<body>
+  <div id="app">
+
+    <!-- Header -->
+    <header id="header">
+      <div id="race-title">🏎 F1 Тотализатор 2026</div>
+      <div id="race-meta"></div>
+      <div id="deadline-block"></div>
+    </header>
+
+    <!-- Instruction -->
+    <div id="instruction">
+      Перетащи гонщиков, расставив их по порядку финиша.
+      <span id="top-n-hint"></span>
+    </div>
+
+    <!-- Driver list -->
+    <div id="list-wrapper">
+      <ul id="driver-list"></ul>
+      <div id="divider" class="hidden">
+        <span>— ниже не учитывается —</span>
+      </div>
+      <ul id="driver-list-tail"></ul>
+    </div>
+
+    <!-- Confirm button -->
+    <div id="footer">
+      <button id="confirm-btn" onclick="confirmPrediction()">
+        ✅ Подтвердить прогноз
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Loading overlay -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>Загрузка…</p>
+  </div>
+
+  <!-- Error screen -->
+  <div id="error-screen" class="hidden">
+    <p id="error-msg">Ошибка загрузки. Попробуй ещё раз.</p>
+    <button onclick="location.reload()">Обновить</button>
+  </div>
+
+  <script src="webapp.js"></script>
+</body>
+</html>
