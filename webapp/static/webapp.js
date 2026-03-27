@@ -62,19 +62,19 @@ const RACES = [
 
 const RACE_BY_ID = Object.fromEntries(RACES.map(r => [r.id, r]));
 
-/* ── Team badges (emoji/text) ────────────────────────────────────────────── */
-const TEAM_BADGES = {
-  "Red Bull Racing": "🔵",
-  "Ferrari":         "🔴",
-  "Mercedes":        "⭐",
-  "McLaren":         "🟠",
-  "Aston Martin":    "💚",
-  "Alpine":          "💜",
-  "Audi":            "⚫",
-  "Williams":        "🔷",
-  "Cadillac":        "🟦",
-  "Racing Bulls":    "🐂",
-  "Haas":            "🔥",
+/* ── Team logos (SVG) ────────────────────────────────────────────────────── */
+const TEAM_LOGOS = {
+  "Red Bull Racing": '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#3671C6"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">RB</text></svg>',
+  "Ferrari":         '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#E8002D"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">FER</text></svg>',
+  "Mercedes":        '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#00FFC8"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="#005F55" font-family="sans-serif">MB</text></svg>',
+  "McLaren":         '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#FF8000"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">MCL</text></svg>',
+  "Aston Martin":    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#229971"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="9" fill="white" font-family="sans-serif">AM</text></svg>',
+  "Alpine":          '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#005BBB"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">ALP</text></svg>',
+  "Audi":            '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#CC0000"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">AUD</text></svg>',
+  "Williams":        '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#003087"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">WIL</text></svg>',
+  "Cadillac":        '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#3B5998"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="9" fill="white" font-family="sans-serif">CAD</text></svg>',
+  "Racing Bulls":    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#6692FF"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="9" fill="white" font-family="sans-serif">RB</text></svg>',
+  "Haas":            '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#FF2D2D"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">HAS</text></svg>',
 };
 
 /* ── URL params ──────────────────────────────────────────────────────────── */
@@ -159,14 +159,14 @@ function renderList() {
 
     const pos      = idx + 1;
     const inTop    = pos <= TOP_N;
-    const badge    = TEAM_BADGES[driver.team] || "🏁";
+    const logoSvg  = TEAM_LOGOS[driver.team] || '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#666"/></svg>';
 
     const li = document.createElement("li");
     li.className  = `driver-item ${inTop ? "in-top" : "out-top"}`;
     li.dataset.id = id;
     li.innerHTML  = `
       <div class="pos-badge">${pos}</div>
-      <div class="team-badge">${badge}</div>
+      <div class="team-logo">${logoSvg}</div>
       <div class="driver-info">
         <div class="driver-code">${driver.id}</div>
         <div class="driver-name">${driver.full_name}</div>
