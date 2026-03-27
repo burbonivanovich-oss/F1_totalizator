@@ -2,7 +2,7 @@
 Scheduled jobs:
   - 1 hour before race: reminder "последний час для прогнозов"
   - 5 minutes before race: notification "приём прогнозов закрыт"
-  - ~10 minutes after race: auto-analyze results if they exist
+  - ~10 minutes after race: auto-fetch results from FastF1, save to DB, calculate scores
 """
 import os
 import sys
@@ -18,8 +18,11 @@ from handlers.calendar_handler import RACES_2026
 
 logger = logging.getLogger(__name__)
 
-# Delay before auto-analyzing results (in minutes)
+# Delay before fetching and analyzing results (in minutes)
 AUTO_ANALYZE_DELAY_MINUTES = 10
+
+# FastF1 season year
+F1_SEASON = 2026
 
 
 async def _send_reminder(bot, race: dict, minutes_before: int, is_sprint: bool):
@@ -53,8 +56,76 @@ async def _send_reminder(bot, race: dict, minutes_before: int, is_sprint: bool):
             logger.exception("Failed to notify user %s", user["telegram_id"])
 
 
+async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
+    """Fetch race results from FastF1 and save to database. Returns True if successful."""
+    import asyncio
+    import fastf1
+
+    from database import save_result
+    from data.drivers import DRIVERS
+
+    race_id = race["id"]
+    race_name = race["name"]
+    session_type = "Sprint" if is_sprint else "Race"
+
+    try:
+        # Build driver number to code mapping
+        number_to_code = {d["number"]: d["id"] for d in DRIVERS}
+
+        # Load session data from FastF1
+        # Run in thread pool since FastF1 is blocking
+        loop = asyncio.get_event_loop()
+        session = await loop.run_in_executor(
+            None,
+            lambda: fastf1.get_session(F1_SEASON, race_id, "S" if is_sprint else "R")
+        )
+
+        # Load results (this downloads data from F1 API)
+        await loop.run_in_executor(None, lambda: session.load())
+
+        # Get results DataFrame
+        results_df = session.results
+
+        if results_df is None or len(results_df) == 0:
+            logger.warning(f"No results found for {race_name} {session_type}")
+            return False
+
+        # Extract driver numbers in finishing order, skip DNF
+        positions = []
+        for idx, row in results_df.iterrows():
+            driver_number = row.get("DriverNumber") or row.get("Driver")
+
+            # Skip drivers who didn't finish or have no valid number
+            if driver_number is None or driver_number == "":
+                continue
+
+            # Convert to int if needed
+            driver_number = int(driver_number) if isinstance(driver_number, (int, float)) else driver_number
+
+            # Convert driver number to code
+            driver_code = number_to_code.get(driver_number)
+            if not driver_code:
+                logger.warning(f"Unknown driver number {driver_number} in {race_name}")
+                continue
+
+            positions.append(driver_code)
+
+        if not positions:
+            logger.warning(f"No valid driver codes extracted for {race_name} {session_type}")
+            return False
+
+        # Save to database
+        await save_result(race_id, is_sprint, positions)
+        logger.info(f"Fetched and saved {session_type} results for {race_name}: {positions}")
+        return True
+
+    except Exception as e:
+        logger.exception(f"Failed to fetch {session_type} results for {race_name} from FastF1")
+        return False
+
+
 async def _auto_analyze_race(bot, race: dict, is_sprint: bool):
-    """Auto-analyze race results if they exist in database."""
+    """Auto-analyze race results: fetch from FastF1, save, and calculate scores."""
     from database import get_result  # lazy import
     from handlers.leaderboard import process_results_and_score
 
@@ -62,17 +133,20 @@ async def _auto_analyze_race(bot, race: dict, is_sprint: bool):
     kind = "спринта" if is_sprint else "гонки"
     race_name = f"{race['flag']} {race['name']}"
 
-    # Check if results exist in database
+    # Try to fetch results from FastF1
+    fetched = await _fetch_and_save_results(race, is_sprint)
+
+    # Check if results exist in database (either fetched or manually entered)
     result = await get_result(race_id, is_sprint)
     if not result:
-        logger.info(f"No results for {race_name} ({kind}) in database yet, skipping auto-analysis")
+        logger.info(f"No results for {race_name} ({kind}), skipping auto-analysis")
         return
 
     try:
         summary = await process_results_and_score(
             race_id, is_sprint, result["positions"], bot
         )
-        logger.info(f"Auto-analyzed {race_name} ({kind}): {summary}")
+        logger.info(f"Auto-analyzed {race_name} ({kind})")
     except Exception as e:
         logger.exception(f"Failed to auto-analyze {race_name} ({kind})")
 
