@@ -4,6 +4,11 @@ Admin commands (restricted to ADMIN_IDS):
     TYPE: race (16 drivers) | sprint (10 drivers)
     Example: /result MON race VER LEC HAM RUS ALO STR NOR PIA SAI ALB HUL BOR COL GAS LAW LIN
     Example: /result MON sprint VER LEC HAM RUS ALO STR NOR PIA SAI ALB (10 total)
+
+  /test_results <RACE_ID> [race|sprint]
+    Fetch and display race results from FastF1
+    Example: /test_results AUS race
+    Example: /test_results CHN sprint
 """
 import os
 import sys
@@ -61,3 +66,84 @@ async def result_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_sprint = race_type == "sprint"
     summary = await process_results_and_score(race_id, is_sprint, drivers, context.bot)
     await update.message.reply_text(f"✅ Результаты сохранены:\n{summary}")
+
+
+async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Test command to fetch and display race results from FastF1."""
+    if update.effective_user.id not in ADMIN_IDS:
+        await update.message.reply_text("⛔ Нет доступа.")
+        return
+
+    args = context.args
+    if len(args) < 1:
+        await update.message.reply_text(
+            "Формат: /test_results <RACE_ID> [race|sprint]\n"
+            "Пример: /test_results AUS race\n"
+            "Пример: /test_results CHN sprint"
+        )
+        return
+
+    import asyncio
+    import fastf1
+    from data.drivers import DRIVERS
+
+    race_id = args[0].upper()
+    race_type = args[1].lower() if len(args) > 1 else "race"
+    is_sprint = race_type == "sprint"
+
+    if race_id not in RACE_BY_ID:
+        await update.message.reply_text(f"❌ Гонка {race_id!r} не найдена.")
+        return
+
+    race = RACE_BY_ID[race_id]
+    race_name = race["name"]
+    session_type = "Спринта" if is_sprint else "Гонки"
+
+    msg = await update.message.reply_text(f"⏳ Загружаю результаты {session_type} {race_name}...")
+
+    try:
+        # Build mapping
+        number_to_code = {d["number"]: d["id"] for d in DRIVERS}
+
+        # Fetch from FastF1
+        loop = asyncio.get_event_loop()
+        session = await loop.run_in_executor(
+            None,
+            lambda: fastf1.get_session(2026, race_id, "S" if is_sprint else "R")
+        )
+
+        await loop.run_in_executor(None, lambda: session.load())
+
+        results_df = session.results
+        if results_df is None or len(results_df) == 0:
+            await msg.edit_text(f"❌ Результаты не найдены")
+            return
+
+        # Extract positions
+        positions = []
+        lines = [f"🏁 <b>Результаты {session_type} {race_name}</b>\n"]
+
+        for idx, row in results_df.iterrows():
+            driver_number = row.get("DriverNumber") or row.get("Driver")
+
+            if driver_number is None:
+                continue
+
+            driver_number = int(driver_number) if isinstance(driver_number, (int, float)) else driver_number
+            driver_code = number_to_code.get(driver_number)
+
+            if not driver_code:
+                continue
+
+            driver_data = next((d for d in DRIVERS if d["id"] == driver_code), {})
+            driver_name = driver_data.get("full_name", "Unknown")
+
+            lines.append(f"{idx + 1}. {driver_code} - {driver_name}")
+            positions.append(driver_code)
+
+        lines.append(f"\n✅ Финишировало: {len(positions)}")
+
+        await msg.edit_text("\n".join(lines), parse_mode="HTML")
+
+    except Exception as e:
+        await msg.edit_text(f"❌ Ошибка: {str(e)}")
