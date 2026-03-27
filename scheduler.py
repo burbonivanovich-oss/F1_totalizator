@@ -2,6 +2,7 @@
 Scheduled jobs:
   - 1 hour before race: reminder "последний час для прогнозов"
   - 5 minutes before race: notification "приём прогнозов закрыт"
+  - ~10 minutes after race: auto-analyze results if they exist
 """
 import os
 import sys
@@ -16,6 +17,9 @@ from telegram.ext import Application
 from handlers.calendar_handler import RACES_2026
 
 logger = logging.getLogger(__name__)
+
+# Delay before auto-analyzing results (in minutes)
+AUTO_ANALYZE_DELAY_MINUTES = 10
 
 
 async def _send_reminder(bot, race: dict, minutes_before: int, is_sprint: bool):
@@ -49,8 +53,32 @@ async def _send_reminder(bot, race: dict, minutes_before: int, is_sprint: bool):
             logger.exception("Failed to notify user %s", user["telegram_id"])
 
 
+async def _auto_analyze_race(bot, race: dict, is_sprint: bool):
+    """Auto-analyze race results if they exist in database."""
+    from database import get_result  # lazy import
+    from handlers.leaderboard import process_results_and_score
+
+    race_id = race["id"]
+    kind = "спринта" if is_sprint else "гонки"
+    race_name = f"{race['flag']} {race['name']}"
+
+    # Check if results exist in database
+    result = await get_result(race_id, is_sprint)
+    if not result:
+        logger.info(f"No results for {race_name} ({kind}) in database yet, skipping auto-analysis")
+        return
+
+    try:
+        summary = await process_results_and_score(
+            race_id, is_sprint, result["positions"], bot
+        )
+        logger.info(f"Auto-analyzed {race_name} ({kind}): {summary}")
+    except Exception as e:
+        logger.exception(f"Failed to auto-analyze {race_name} ({kind})")
+
+
 def register_race_jobs(app: Application):
-    """Register reminder jobs for all upcoming races."""
+    """Register reminder and auto-analysis jobs for all upcoming races."""
     jq = app.job_queue
     now = datetime.now(timezone.utc)
 
@@ -82,4 +110,13 @@ def register_race_jobs(app: Application):
                     name=f"remind_5m_{race_id}_{'sprint' if is_sprint else 'race'}",
                 )
 
-    logger.info("Race reminder jobs registered.")
+            # Auto-analyze results after race ends
+            auto_analyze_time = race_time + timedelta(minutes=AUTO_ANALYZE_DELAY_MINUTES)
+            if auto_analyze_time > now:
+                jq.run_once(
+                    lambda ctx, r=race, s=sprint_flag: _auto_analyze_race(ctx.bot, r, s),
+                    when=auto_analyze_time,
+                    name=f"auto_analyze_{race_id}_{'sprint' if is_sprint else 'race'}",
+                )
+
+    logger.info("Race reminder and auto-analysis jobs registered.")
