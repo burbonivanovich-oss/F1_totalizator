@@ -148,13 +148,15 @@ html, body {
   color: #fff;
 }
 
-.team-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
+.team-badge {
+  font-size: 18px;
   flex-shrink: 0;
-  margin-right: 10px;
-  border: 1px solid rgba(255,255,255,0.15);
+  margin-right: 8px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .driver-info {
