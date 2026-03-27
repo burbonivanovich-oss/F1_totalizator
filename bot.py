@@ -20,7 +20,7 @@ from handlers.start import start, menu_callback
 from handlers.calendar_handler import show_calendar, show_drivers
 from handlers.leaderboard import show_leaderboard
 from handlers.predictions import build_predict_conversation, show_my_predictions, handle_webapp_data
-from handlers.admin import result_command
+from handlers.admin import result_command, test_results_command
 from scheduler import register_race_jobs
 
 logging.basicConfig(
@@ -58,6 +58,7 @@ def main():
     app.add_handler(CommandHandler("calendar", show_calendar))
     app.add_handler(CommandHandler("leaderboard", show_leaderboard))
     app.add_handler(CommandHandler("result", result_command))
+    app.add_handler(CommandHandler("test_results", test_results_command))
 
     # Inline button router (main menu)
     app.add_handler(CallbackQueryHandler(menu_callback, pattern="^menu:"))
