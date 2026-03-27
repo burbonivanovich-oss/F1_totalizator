@@ -64,17 +64,17 @@ const RACE_BY_ID = Object.fromEntries(RACES.map(r => [r.id, r]));
 
 /* ── Team colors ─────────────────────────────────────────────────────────── */
 const TEAM_COLORS = {
-  "Red Bull Racing": ["#3671C6", "#3671C6"],
-  "Ferrari":         ["#E8002D", "#E8002D"],
+  "Red Bull Racing": ["#3671C6", "#1e42a8"],
+  "Ferrari":         ["#E8002D", "#a80020"],
   "Mercedes":        ["#00FFC8", "#005F55"],
-  "McLaren":         ["#FF8000", "#FF8000"],
-  "Aston Martin":    ["#229971", "#229971"],
+  "McLaren":         ["#FF8000", "#cc6600"],
+  "Aston Martin":    ["#229971", "#1a7755"],
   "Alpine":          ["#FF6EB4", "#005BBB"],
-  "Audi":            ["#CC0000", "#888888"],
+  "Audi":            ["#CC0000", "#990000"],
   "Williams":        ["#80D4FF", "#003087"],
-  "Cadillac":        ["#FFFFFF", "#1C1C1C"],
-  "Racing Bulls":    ["#FFFFFF", "#FFFFFF"],
-  "Haas":            ["#FFFFFF", "#1C1C1C", "#CC0000"],
+  "Cadillac":        ["#3B5998", "#1a2d4a"],
+  "Racing Bulls":    ["#6692FF", "#3355cc"],
+  "Haas":            ["#FF2D2D", "#990000"],
 };
 
 /* ── URL params ──────────────────────────────────────────────────────────── */
@@ -193,12 +193,25 @@ function initSortable() {
       const topIds  = [...$list.querySelectorAll(".driver-item")].map(el => el.dataset.id);
       const tailIds = [...$listTail.querySelectorAll(".driver-item")].map(el => el.dataset.id);
       orderedIds = [...topIds, ...tailIds];
-      renderList();
-      initSortable();
+      updateTopNClasses();
     },
   };
   Sortable.create($list,     opts);
   Sortable.create($listTail, opts);
+}
+
+/* ── Update top-n classes without re-rendering ────────────────────────────── */
+function updateTopNClasses() {
+  const allItems = [...$list.querySelectorAll(".driver-item"), ...$listTail.querySelectorAll(".driver-item")];
+  allItems.forEach((item, idx) => {
+    const pos = idx + 1;
+    const inTop = pos <= TOP_N;
+    const badge = item.querySelector(".pos-badge");
+    if (badge) badge.textContent = pos;
+    item.classList.toggle("in-top", inTop);
+    item.classList.toggle("out-top", !inTop);
+  });
+  if (orderedIds.length > TOP_N) $divider.classList.remove("hidden");
 }
 
 /* ── Deadline timer ──────────────────────────────────────────────────────── */

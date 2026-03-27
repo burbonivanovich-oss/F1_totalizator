@@ -75,11 +75,12 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     args = context.args
-    if len(args) < 1:
+    if not args:
         await update.message.reply_text(
             "Формат: /test_results <RACE_ID> [race|sprint]\n"
             "Пример: /test_results AUS race\n"
-            "Пример: /test_results CHN sprint"
+            "Пример: /test_results CHN sprint\n\n"
+            "По умолчанию ищет гонку (race)."
         )
         return
 
@@ -87,8 +88,8 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
     import fastf1
     from data.drivers import DRIVERS
 
-    race_id = args[0].upper()
-    race_type = args[1].lower() if len(args) > 1 else "race"
+    race_id = args[0].upper().strip()
+    race_type = args[1].lower().strip() if len(args) > 1 else "race"
     is_sprint = race_type == "sprint"
 
     if race_id not in RACE_BY_ID:
