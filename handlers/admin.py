@@ -70,11 +70,16 @@ async def result_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Test command to fetch and display race results from FastF1."""
+    import logging
+    logger = logging.getLogger(__name__)
+
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("⛔ Нет доступа.")
         return
 
     args = context.args
+    logger.info(f"test_results_command called with args: {args}")
+
     if not args:
         await update.message.reply_text(
             "Формат: /test_results <RACE_ID> [race|sprint]\n"
@@ -91,6 +96,8 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
     race_id = args[0].upper().strip()
     race_type = args[1].lower().strip() if len(args) > 1 else "race"
     is_sprint = race_type == "sprint"
+
+    logger.info(f"Race ID: {race_id}, Type: {race_type}, Is Sprint: {is_sprint}")
 
     if race_id not in RACE_BY_ID:
         await update.message.reply_text(f"❌ Гонка {race_id!r} не найдена.")
@@ -113,6 +120,7 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
             lambda: fastf1.get_session(2026, race_id, "S" if is_sprint else "R")
         )
 
+        logger.info(f"Fetching session for {race_id} {race_type}")
         await loop.run_in_executor(None, lambda: session.load())
 
         results_df = session.results
@@ -147,4 +155,5 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
         await msg.edit_text("\n".join(lines), parse_mode="HTML")
 
     except Exception as e:
+        logger.exception(f"Error in test_results: {e}")
         await msg.edit_text(f"❌ Ошибка: {str(e)}")
