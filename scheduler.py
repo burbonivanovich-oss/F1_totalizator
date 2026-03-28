@@ -24,6 +24,32 @@ AUTO_ANALYZE_DELAY_MINUTES = 10
 # FastF1 season year
 F1_SEASON = 2026
 
+# Mapping from race ID to FastF1 GP name (full names that FastF1 understands)
+RACE_ID_TO_FASTF1_NAME = {
+    "AUS": "Australia",
+    "CHN": "China",
+    "JPN": "Japan",
+    "MIA": "Miami",
+    "CAN": "Canada",
+    "MON": "Monaco",
+    "ESP": "Spain",
+    "AUT": "Austria",
+    "GBR": "Britain",
+    "BEL": "Belgium",
+    "HUN": "Hungary",
+    "NED": "Netherlands",
+    "ITA": "Italy",
+    "MAD": "Madrid",
+    "AZE": "Azerbaijan",
+    "SGP": "Singapore",
+    "USA": "United States",
+    "MEX": "Mexico",
+    "BRA": "Brazil",
+    "LVG": "Las Vegas",
+    "QAT": "Qatar",
+    "ABU": "Abu Dhabi",
+}
+
 
 async def _send_reminder(bot, race: dict, minutes_before: int, is_sprint: bool):
     from database import get_leaderboard  # lazy import to avoid circular deps
@@ -72,13 +98,23 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
         # Build driver number to code mapping
         number_to_code = {d["number"]: d["id"] for d in DRIVERS}
 
+        # Convert race ID to FastF1 GP name
+        gp_name = RACE_ID_TO_FASTF1_NAME.get(race_id)
+        if not gp_name:
+            logger.warning(f"Unknown race ID {race_id}, cannot fetch results")
+            return False
+
         # Load session data from FastF1
         # Run in thread pool since FastF1 is blocking
         loop = asyncio.get_event_loop()
         session = await loop.run_in_executor(
             None,
-            lambda: fastf1.get_session(F1_SEASON, race_id, "S" if is_sprint else "R")
+            lambda: fastf1.get_session(F1_SEASON, gp_name, "S" if is_sprint else "R")
         )
+
+        if not session:
+            logger.warning(f"Could not find session for {race_name} {session_type}")
+            return False
 
         # Load results (this downloads data from F1 API)
         await loop.run_in_executor(None, lambda: session.load())
