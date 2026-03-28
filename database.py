@@ -181,7 +181,8 @@ async def get_user_predictions(user_id: int) -> list[dict]:
 # ── Results ───────────────────────────────────────────────────────────────────
 
 async def save_result(race_id: str, is_sprint: bool, positions: list[str]) -> None:
-    """Save race result with ordered list of driver IDs (16 for race, 10 for sprint)."""
+    """Save race result with ordered list of finished driver IDs.
+    Can be less than 16 (race) or 10 (sprint) due to DNF/DNS drivers."""
     async with aiosqlite.connect(DB_PATH) as db:
         now = datetime.now(timezone.utc).isoformat()
         positions_json = json.dumps(positions, ensure_ascii=False)

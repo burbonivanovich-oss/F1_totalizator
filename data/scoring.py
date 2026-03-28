@@ -51,7 +51,7 @@ def calculate_score(
     if not pred_list or not result_list:
         return {"total": 0, "breakdown": ["❌ Пустой список результатов или прогноза"]}
 
-    # Check for correct list length
+    # Check for correct prediction list length
     if len(pred_list) != expected_count:
         return {
             "total": 0,
@@ -61,14 +61,8 @@ def calculate_score(
             ],
         }
 
-    if len(result_list) != expected_count:
-        return {
-            "total": 0,
-            "breakdown": [
-                f"❌ Неверное количество результатов: {len(result_list)} "
-                f"(ожидается {expected_count})"
-            ],
-        }
+    # Results can have fewer drivers due to DNF/DNS — that's OK!
+    # Drivers not in results will get -1 penalty in scoring
 
     # Check for duplicate drivers in prediction
     if len(set(pred_list)) != len(pred_list):

@@ -52,19 +52,26 @@ async def process_results_and_score(
 
     # ── Validate results ─────────────────────────────────────────────────────
     expected_count = 10 if is_sprint else 16
+    min_count = 1  # At least 1 driver must finish
 
     if not positions or not isinstance(positions, list):
         error_msg = f"Invalid race results for {race_id}: empty or non-list positions"
         logger.error(error_msg)
         return f"❌ {error_msg}"
 
-    if len(positions) != expected_count:
+    if len(positions) < min_count:
         error_msg = (
             f"Invalid race results for {race_id}: got {len(positions)} results, "
-            f"expected {expected_count}"
+            f"need at least {min_count}"
         )
         logger.error(error_msg)
         return f"❌ {error_msg}"
+
+    if len(positions) < expected_count:
+        logger.info(
+            f"Partial results for {race_id}: {len(positions)} finished "
+            f"(expected {expected_count}). DNF drivers will get -1 penalty."
+        )
 
     if len(set(positions)) != len(positions):
         duplicates = [d for d in positions if positions.count(d) > 1]
