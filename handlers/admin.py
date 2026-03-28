@@ -165,12 +165,24 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
             await msg.edit_text(f"❌ Результаты не найдены")
             return
 
-        # Extract positions in order from DataFrame
+        # Sort by Position if available
+        try:
+            if 'Position' in results_df.columns:
+                sorted_results = results_df.sort_values('Position', na_position='last')
+            elif 'ClassifiedPosition' in results_df.columns:
+                sorted_results = results_df.sort_values('ClassifiedPosition', na_position='last')
+            else:
+                sorted_results = results_df
+        except Exception as e:
+            logger.debug(f"Could not sort results: {e}")
+            sorted_results = results_df
+
+        # Extract positions in sorted order
         positions = []
         lines = [f"🏁 <b>Результаты {session_type} {race_name}</b>\n"]
         position_number = 1
 
-        for idx, row in results_df.iterrows():
+        for idx, row in sorted_results.iterrows():
             driver_number = row.get("DriverNumber") or row.get("Driver")
 
             if driver_number is None:

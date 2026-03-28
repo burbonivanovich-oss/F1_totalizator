@@ -129,9 +129,21 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
             logger.warning(f"No results found for {race_name} {session_type}")
             return False
 
-        # Extract driver numbers in order from DataFrame (simple approach)
+        # Sort by Position if available (keeps all drivers including DNF)
+        try:
+            if 'Position' in results_df.columns:
+                sorted_results = results_df.sort_values('Position', na_position='last')
+            elif 'ClassifiedPosition' in results_df.columns:
+                sorted_results = results_df.sort_values('ClassifiedPosition', na_position='last')
+            else:
+                sorted_results = results_df
+        except Exception as e:
+            logger.debug(f"Could not sort results for {race_name}: {e}, using original order")
+            sorted_results = results_df
+
+        # Extract driver numbers in sorted order
         positions = []
-        for idx, row in results_df.iterrows():
+        for idx, row in sorted_results.iterrows():
             driver_number = row.get("DriverNumber") or row.get("Driver")
 
             # Skip if no valid number
