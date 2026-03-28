@@ -175,7 +175,7 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
         else:
             sorted_results = finished_df
 
-        # Extract positions
+        # Extract positions (finished drivers)
         positions = []
         lines = [f"🏁 <b>Результаты {session_type} {race_name}</b>\n"]
         position_number = 1
@@ -205,6 +205,43 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
             position_number += 1
 
         lines.append(f"\n✅ Финишировало: {len(positions)}")
+
+        # Show DNF (Did Not Finish) drivers
+        dnf_drivers = []
+        for idx, row in results_df.iterrows():
+            status = str(row.get("Status", "")).strip()
+            if status and status != "+0:00:00.000" and "+" not in status[:1]:  # DNF status doesn't start with +
+                driver_number = row.get("DriverNumber") or row.get("Driver")
+                if driver_number is None:
+                    continue
+                try:
+                    driver_number = int(driver_number)
+                except (ValueError, TypeError):
+                    continue
+                driver_code = number_to_code.get(driver_number)
+                if driver_code:
+                    driver_data = DRIVER_BY_ID.get(driver_code, {})
+                    driver_name = driver_data.get("full_name", "Unknown")
+                    dnf_drivers.append(f"• {driver_code} - {driver_name}")
+
+        if dnf_drivers:
+            lines.append("\n❌ Не закончили заезд:")
+            lines.extend(dnf_drivers)
+
+        # Show DNS (Did Not Start) drivers - those in our driver list but not in results
+        all_driver_codes = set(DRIVER_BY_ID.keys())
+        finished_and_dnf = set(positions) | {code for _, row in results_df.iterrows()
+                                              for code in [number_to_code.get(int(row.get("DriverNumber") or row.get("Driver")))]
+                                              if code}
+        dns_drivers = []
+        for code in all_driver_codes - finished_and_dnf:
+            driver_data = DRIVER_BY_ID.get(code, {})
+            driver_name = driver_data.get("full_name", "Unknown")
+            dns_drivers.append(f"• {code} - {driver_name}")
+
+        if dns_drivers:
+            lines.append("\n⚠️ Не участвовали в заезде:")
+            lines.extend(sorted(dns_drivers))
 
         await msg.edit_text("\n".join(lines), parse_mode="HTML")
 
