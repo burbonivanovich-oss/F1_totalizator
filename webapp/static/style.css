@@ -139,11 +139,6 @@ html, body {
   flex-shrink: 0;
 }
 
-/* Team color backgrounds - set via data-team-color */
-.pos-badge {
-  background-color: #999;
-}
-
 .team-logo {
   width: 28px;
   height: 28px;
