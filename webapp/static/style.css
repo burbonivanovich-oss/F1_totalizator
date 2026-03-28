@@ -2,18 +2,16 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:          #1a1a2e;
-  --surface:     #16213e;
-  --surface2:    #0f3460;
-  --accent:      #e94560;
-  --text:        #eaeaea;
-  --text-muted:  #8a8a9a;
-  --border:      #2a2a4a;
-  --top-n-bg:    rgba(233, 69, 96, 0.12);
-  --top-n-border:#e94560;
-  --divider:     #e94560;
-  --handle:      #4a4a6a;
-  --btn-bg:      #e94560;
+  --bg:          #f8f8f8;
+  --surface:     #ffffff;
+  --surface2:    #f0f0f0;
+  --accent:      #333333;
+  --text:        #1a1a1a;
+  --text-muted:  #666666;
+  --border:      #e0e0e0;
+  --divider:     #cccccc;
+  --handle:      #999999;
+  --btn-bg:      #333333;
   --btn-text:    #ffffff;
   --radius:      12px;
   --row-height:  52px;
@@ -28,7 +26,6 @@ body.theme-light {
   --text:        #1a1a1a;
   --text-muted:  #666666;
   --border:      #dddddd;
-  --top-n-bg:    rgba(233, 69, 96, 0.08);
   --handle:      #aaaaaa;
 }
 
@@ -119,21 +116,20 @@ html, body {
 .driver-item.sortable-ghost { opacity: 0.4; }
 .driver-item.sortable-chosen { background: var(--surface2); }
 
-/* Top-N items get accent left border */
+/* Items visible as-is, no special styling for top-n */
 .driver-item.in-top {
-  background: var(--top-n-bg);
-  border-left: 3px solid var(--top-n-border);
+  /* Uses team color from pos-badge */
 }
 .driver-item.out-top {
-  opacity: 0.6;
+  /* All items equally visible */
 }
 
 .pos-badge {
-  min-width: 28px;
-  height: 28px;
+  min-width: 32px;
+  height: 32px;
   border-radius: 6px;
   background: var(--surface2);
-  color: var(--text-muted);
+  color: #fff;
   font-size: 12px;
   font-weight: 700;
   display: flex;
@@ -143,9 +139,9 @@ html, body {
   flex-shrink: 0;
 }
 
-.driver-item.in-top .pos-badge {
-  background: var(--accent);
-  color: #fff;
+/* Team color backgrounds - set via data-team-color */
+.pos-badge {
+  background-color: #999;
 }
 
 .team-logo {
