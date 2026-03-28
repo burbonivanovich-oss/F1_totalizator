@@ -138,7 +138,12 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
             if driver_number is None:
                 continue
 
-            driver_number = int(driver_number) if isinstance(driver_number, (int, float)) else driver_number
+            try:
+                driver_number = int(driver_number)
+            except (ValueError, TypeError):
+                logger.debug(f"Could not convert driver number {driver_number}")
+                continue
+
             driver_code = number_to_code.get(driver_number)
 
             if not driver_code:

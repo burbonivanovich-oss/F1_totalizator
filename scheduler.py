@@ -134,7 +134,9 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
         # Sort by ClassifiedPosition to get finishing order
         sorted_results = results_df.sort_values('ClassifiedPosition', na_position='last')
 
-        for _, row in sorted_results.iterrows():
+        logger.info(f"Processing {len(sorted_results)} results from FastF1")
+
+        for idx, row in sorted_results.iterrows():
             # Try to get driver abbreviation or number
             abbrev = row.get('Abbreviation')
             driver_number = row.get('DriverNumber')
@@ -142,25 +144,40 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
             if pd.isna(abbrev) and pd.isna(driver_number):
                 continue
 
+            logger.debug(f"Processing driver: abbrev={abbrev}, number={driver_number}")
+
             # Try abbreviation first (3-letter code like VER, HAM, etc.)
             driver_code = None
             if not pd.isna(abbrev):
                 abbrev_str = str(abbrev).upper().strip()
-                # Search for matching driver
-                for code, driver in DRIVER_BY_ID.items():
-                    if driver.get("name", "").upper() == abbrev_str or code == abbrev_str:
-                        driver_code = code
-                        break
+                logger.debug(f"Looking for abbreviation: {abbrev_str}")
+                # Direct match in DRIVER_BY_ID keys
+                if abbrev_str in DRIVER_BY_ID:
+                    driver_code = abbrev_str
+                else:
+                    # Search for matching driver name
+                    for code, driver in DRIVER_BY_ID.items():
+                        if driver.get("name", "").upper() == abbrev_str or code == abbrev_str:
+                            driver_code = code
+                            break
 
             # Fall back to driver number
             if not driver_code and not pd.isna(driver_number):
-                driver_number = int(driver_number) if isinstance(driver_number, (int, float)) else driver_number
-                driver_code = number_to_code.get(driver_number)
+                try:
+                    # Always convert to int - handles numpy/pandas types too
+                    driver_num = int(driver_number)
+                    logger.debug(f"Looking for driver number: {driver_num} (type: {type(driver_num).__name__})")
+                    driver_code = number_to_code.get(driver_num)
+                    if driver_code:
+                        logger.debug(f"Found driver code for number {driver_num}: {driver_code}")
+                except (ValueError, TypeError) as e:
+                    logger.debug(f"Could not convert driver number {driver_number}: {e}")
 
             if driver_code:
                 positions.append(driver_code)
+                logger.debug(f"Added driver {driver_code} to positions")
             else:
-                logger.debug(f"Could not map driver {abbrev}/{driver_number} to code in {race_name}")
+                logger.warning(f"Could not map driver {abbrev}/{driver_number} to code in {race_name}")
 
         if not positions:
             logger.warning(f"No valid driver codes extracted for {race_name} {session_type}")
