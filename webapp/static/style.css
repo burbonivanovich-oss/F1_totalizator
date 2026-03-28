@@ -112,20 +112,20 @@ html, body {
   touch-action: none;
   user-select: none;
   cursor: grab;
-  transition: background 0.15s;
+  transition: none;
 }
 
 .driver-item:active { cursor: grabbing; }
 .driver-item.sortable-ghost { opacity: 0.4; }
 .driver-item.sortable-chosen { background: var(--surface2); }
 
-/* Top-N items get accent left border */
+/* Uniform styling for all items */
 .driver-item.in-top {
-  background: var(--top-n-bg);
-  border-left: 3px solid var(--top-n-border);
+  border-left: 3px solid var(--accent);
 }
+
 .driver-item.out-top {
-  opacity: 0.6;
+  border-left: 3px solid transparent;
 }
 
 .pos-badge {

@@ -182,14 +182,17 @@ function renderList() {
 /* ── SortableJS ──────────────────────────────────────────────────────────── */
 function initSortable() {
   const opts = {
-    animation: 150,
+    animation: 0,
     ghostClass: "sortable-ghost",
     chosenClass: "sortable-chosen",
     group: "drivers",
+    delay: 50,
+    delayOnTouchOnly: true,
     onEnd() {
-      const topIds  = [...$list.querySelectorAll(".driver-item")].map(el => el.dataset.id);
-      const tailIds = [...$listTail.querySelectorAll(".driver-item")].map(el => el.dataset.id);
-      orderedIds = [...topIds, ...tailIds];
+      // Collect ALL items from both lists
+      const allItems = [...document.querySelectorAll(".driver-item")];
+      const newOrder = allItems.map(el => el.dataset.id);
+      orderedIds = newOrder;
       updateTopNClasses();
     },
   };
@@ -199,7 +202,7 @@ function initSortable() {
 
 /* ── Update top-n classes without re-rendering ────────────────────────────── */
 function updateTopNClasses() {
-  const allItems = [...$list.querySelectorAll(".driver-item"), ...$listTail.querySelectorAll(".driver-item")];
+  const allItems = document.querySelectorAll(".driver-item");
   allItems.forEach((item, idx) => {
     const pos = idx + 1;
     const inTop = pos <= TOP_N;
