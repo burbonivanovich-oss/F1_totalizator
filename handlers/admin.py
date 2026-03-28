@@ -71,6 +71,12 @@ async def result_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Test command to fetch and display race results from FastF1."""
     import logging
+    import os
+    import sys
+
+    # Ensure project root is in path
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
     logger = logging.getLogger(__name__)
 
     if update.effective_user.id not in ADMIN_IDS:
