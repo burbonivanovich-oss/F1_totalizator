@@ -91,7 +91,6 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
     import asyncio
     import fastf1
-    from data.drivers import DRIVERS
 
     race_id = args[0].upper().strip()
     race_type = args[1].lower().strip() if len(args) > 1 else "race"
@@ -110,8 +109,9 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
     msg = await update.message.reply_text(f"⏳ Загружаю результаты {session_type} {race_name}...")
 
     try:
-        # Build mapping
-        number_to_code = {d["number"]: d["id"] for d in DRIVERS}
+        # Build mapping from driver_id (code) to number
+        code_to_number = {d["id"]: d["number"] for d in DRIVER_BY_ID.values()}
+        number_to_code = {v: k for k, v in code_to_number.items()}
 
         # Fetch from FastF1
         loop = asyncio.get_event_loop()
@@ -138,13 +138,18 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
             if driver_number is None:
                 continue
 
-            driver_number = int(driver_number) if isinstance(driver_number, (int, float)) else driver_number
+            try:
+                driver_number = int(driver_number)
+            except (ValueError, TypeError):
+                logger.debug(f"Could not convert driver number {driver_number}")
+                continue
+
             driver_code = number_to_code.get(driver_number)
 
             if not driver_code:
                 continue
 
-            driver_data = next((d for d in DRIVERS if d["id"] == driver_code), {})
+            driver_data = DRIVER_BY_ID.get(driver_code, {})
             driver_name = driver_data.get("full_name", "Unknown")
 
             lines.append(f"{idx + 1}. {driver_code} - {driver_name}")

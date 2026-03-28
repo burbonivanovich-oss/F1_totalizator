@@ -99,8 +99,12 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
             if driver_number is None or driver_number == "":
                 continue
 
-            # Convert to int if needed
-            driver_number = int(driver_number) if isinstance(driver_number, (int, float)) else driver_number
+            # Convert to int - handles numpy/pandas types too
+            try:
+                driver_number = int(driver_number)
+            except (ValueError, TypeError):
+                logger.warning(f"Could not convert driver number {driver_number} in {race_name}")
+                continue
 
             # Convert driver number to code
             driver_code = number_to_code.get(driver_number)
