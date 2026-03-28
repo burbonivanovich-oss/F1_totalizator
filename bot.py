@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import asyncio
 
 # Ensure project root is in Python path regardless of working directory
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -39,6 +40,19 @@ async def post_init(app: Application):
 def main():
     if not BOT_TOKEN:
         raise RuntimeError("BOT_TOKEN is not set. Copy .env.example to .env and fill it in.")
+
+    # Fix for Python 3.10+ (especially Python 3.14 on Render)
+    # Ensure event loop exists before running the bot
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError("Event loop is closed")
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
 
     app = (
         Application.builder()
