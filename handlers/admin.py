@@ -164,12 +164,23 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
             await msg.edit_text(f"❌ Результаты не найдены")
             return
 
+        # Filter only drivers who finished (Status = "Finished") and sort by Position/ClassifiedPosition
+        finished_df = results_df[results_df['Status'] == '+0:00:00.000'].copy() if 'Status' in results_df.columns else results_df.copy()
+
+        # Sort by Position if available, otherwise by ClassifiedPosition
+        if 'Position' in finished_df.columns:
+            sorted_results = finished_df.sort_values('Position', na_position='last')
+        elif 'ClassifiedPosition' in finished_df.columns:
+            sorted_results = finished_df.sort_values('ClassifiedPosition', na_position='last')
+        else:
+            sorted_results = finished_df
+
         # Extract positions
         positions = []
         lines = [f"🏁 <b>Результаты {session_type} {race_name}</b>\n"]
         position_number = 1
 
-        for idx, row in results_df.iterrows():
+        for idx, row in sorted_results.iterrows():
             driver_number = row.get("DriverNumber") or row.get("Driver")
 
             if driver_number is None:
