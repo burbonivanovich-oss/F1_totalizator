@@ -110,17 +110,31 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
         # Load session data from FastF1
         # Run in thread pool since FastF1 is blocking
         loop = asyncio.get_event_loop()
-        session = await loop.run_in_executor(
-            None,
-            lambda: fastf1.get_session(F1_SEASON, gp_name, "S" if is_sprint else "R")
-        )
+        try:
+            session = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: fastf1.get_session(F1_SEASON, gp_name, "S" if is_sprint else "R")
+                ),
+                timeout=20.0  # 20 second timeout
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"FastF1 session init timeout for {race_name} {session_type}")
+            return False
 
         if not session:
             logger.warning(f"Could not find session for {race_name} {session_type}")
             return False
 
         # Load results (this downloads data from F1 API)
-        await loop.run_in_executor(None, lambda: session.load())
+        try:
+            await asyncio.wait_for(
+                loop.run_in_executor(None, lambda: session.load()),
+                timeout=45.0  # 45 second timeout for data loading
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"FastF1 data load timeout for {race_name} {session_type}")
+            return False
 
         # Get results DataFrame
         results_df = session.results

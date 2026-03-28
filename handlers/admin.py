@@ -12,6 +12,7 @@ Admin commands (restricted to ADMIN_IDS):
 """
 import os
 import sys
+import asyncio
 # Ensure project root (parent of handlers/) is always in sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -147,17 +148,42 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
         # Fetch from FastF1
         loop = asyncio.get_event_loop()
-        session = await loop.run_in_executor(
-            None,
-            lambda: fastf1.get_session(2026, gp_name, "S" if is_sprint else "R")
-        )
+        try:
+            session = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: fastf1.get_session(2026, gp_name, "S" if is_sprint else "R")
+                ),
+                timeout=15.0  # 15 second timeout for session init
+            )
+        except asyncio.TimeoutError:
+            await msg.edit_text(
+                f"⏱ Превышено время ожидания при подключении к FastF1.\n"
+                f"Попробуй ещё раз позже."
+            )
+            return
 
         if not session:
             await msg.edit_text(f"❌ Сессия не найдена для {race_name}")
             return
 
         logger.info(f"Fetching session for {race_id} ({gp_name}) {race_type}")
-        await loop.run_in_executor(None, lambda: session.load())
+        try:
+            # Load with timeout to prevent hanging
+            await asyncio.wait_for(
+                loop.run_in_executor(None, lambda: session.load()),
+                timeout=30.0  # 30 second timeout
+            )
+        except asyncio.TimeoutError:
+            await msg.edit_text(
+                f"⏱ Превышено время ожидания при загрузке данных FastF1.\n"
+                f"Попробуй ещё раз позже или введи результаты вручную: /result CHN race VER LEC HAM..."
+            )
+            return
+        except Exception as e:
+            logger.exception(f"Error loading session data: {e}")
+            await msg.edit_text(f"❌ Ошибка при загрузке данных: {str(e)[:100]}")
+            return
 
         results_df = session.results
         if results_df is None or len(results_df) == 0:
