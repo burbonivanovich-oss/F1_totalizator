@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 FIRST_RESULT_CHECK_DELAY_MINUTES = 120  # 2 hours after race ends
 
 # Retry delays for results checking (in minutes) - exponential backoff
-RESULT_RETRY_DELAYS = [60, 120, 240]  # 1h, 2h, 4h if previous attempts failed
+RESULT_RETRY_DELAYS = [60, 120, 240, 360, 720]  # 1h, 2h, 4h, 6h, 12h if previous attempts failed
 
 # FastF1 season year
 F1_SEASON = 2026
