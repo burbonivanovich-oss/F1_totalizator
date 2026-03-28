@@ -226,7 +226,18 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Save
     tg_user    = update.effective_user
     user_db_id = await db.upsert_user(tg_user.id, tg_user.username, tg_user.full_name)
-    await db.save_prediction(user_db_id, race_id, is_sprint, positions)
+    saved = await db.save_prediction(user_db_id, race_id, is_sprint, positions)
+
+    if not saved:
+        await update.message.reply_text(
+            f"❌ <b>Ошибка сохранения прогноза!</b>\n\n"
+            f"Пожалуйста, попробуй ещё раз или свяжись с администратором.",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("◀️ Главное меню", callback_data="main_menu")
+            ]]),
+        )
+        return
 
     kind = "спринт" if is_sprint else "гонку"
     podium = "\n".join(

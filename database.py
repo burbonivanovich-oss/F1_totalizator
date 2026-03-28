@@ -86,19 +86,58 @@ async def get_user_by_telegram_id(telegram_id: int) -> Optional[dict]:
 async def save_prediction(
     user_id: int, race_id: str, is_sprint: bool,
     positions: list[str],
-) -> None:
-    """Save prediction with ordered list of driver IDs (16 for race, 10 for sprint)."""
+) -> bool:
+    """
+    Save prediction with ordered list of driver IDs (16 for race, 10 for sprint).
+    Returns True if saved successfully, False if validation failed.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # ── Validate positions ───────────────────────────────────────────────────
+    expected_count = 10 if is_sprint else 16
+
+    if not positions or not isinstance(positions, list):
+        logger.error(f"Invalid prediction for user {user_id}: empty or non-list positions")
+        return False
+
+    if len(positions) != expected_count:
+        logger.error(
+            f"Invalid prediction for user {user_id} in race {race_id}: "
+            f"got {len(positions)} drivers, expected {expected_count}"
+        )
+        return False
+
+    # Check for duplicates
+    if len(set(positions)) != len(positions):
+        duplicates = [d for d in positions if positions.count(d) > 1]
+        logger.error(
+            f"Invalid prediction for user {user_id}: duplicate drivers {set(duplicates)}"
+        )
+        return False
+
+    # Check for None or empty values
+    if None in positions or "" in positions:
+        logger.error(f"Invalid prediction for user {user_id}: contains empty values")
+        return False
+
+    # ── Save ─────────────────────────────────────────────────────────────────
     async with aiosqlite.connect(DB_PATH) as db:
         now = datetime.now(timezone.utc).isoformat()
         positions_json = json.dumps(positions, ensure_ascii=False)
-        await db.execute("""
-            INSERT INTO predictions (user_id, race_id, is_sprint, positions, submitted_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(user_id, race_id, is_sprint) DO UPDATE SET
-                positions = excluded.positions,
-                updated_at = excluded.updated_at
-        """, (user_id, race_id, int(is_sprint), positions_json, now, now))
-        await db.commit()
+        try:
+            await db.execute("""
+                INSERT INTO predictions (user_id, race_id, is_sprint, positions, submitted_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, race_id, is_sprint) DO UPDATE SET
+                    positions = excluded.positions,
+                    updated_at = excluded.updated_at
+            """, (user_id, race_id, int(is_sprint), positions_json, now, now))
+            await db.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save prediction for user {user_id}: {e}")
+            return False
 
 
 async def get_prediction(user_id: int, race_id: str, is_sprint: bool) -> Optional[dict]:
@@ -174,6 +213,9 @@ async def get_result(race_id: str, is_sprint: bool) -> Optional[dict]:
 
 
 async def get_all_predictions_for_race(race_id: str, is_sprint: bool) -> list[dict]:
+    import logging
+    logger = logging.getLogger(__name__)
+
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
@@ -184,14 +226,32 @@ async def get_all_predictions_for_race(race_id: str, is_sprint: bool) -> list[di
         """, (race_id, int(is_sprint))) as cur:
             rows = await cur.fetchall()
             results = []
+            skipped_count = 0
             for r in rows:
                 row_dict = dict(r)
                 try:
                     row_dict["positions"] = json.loads(row_dict["positions"])
+                    # Validate that positions is a list
+                    if not isinstance(row_dict["positions"], list) or not row_dict["positions"]:
+                        logger.warning(
+                            f"Invalid positions for user {row_dict['telegram_id']} "
+                            f"in race {race_id}: {row_dict['positions']}"
+                        )
+                        skipped_count += 1
+                        continue
                     results.append(row_dict)
-                except json.JSONDecodeError:
-                    # Skip corrupted records
+                except json.JSONDecodeError as e:
+                    logger.error(
+                        f"Corrupted prediction data for user {row_dict.get('telegram_id')} "
+                        f"in race {race_id}: {e}"
+                    )
+                    skipped_count += 1
                     continue
+
+            if skipped_count > 0:
+                logger.warning(
+                    f"Skipped {skipped_count} corrupted predictions for race {race_id}"
+                )
             return results
 
 
