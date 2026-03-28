@@ -96,8 +96,8 @@ async def test_fetch_results(race_id: str, is_sprint: bool = False):
             sorted_results = finished_df
 
         print(f"\n✅ Found {len(results_df)} drivers ({len(sorted_results)} finished)\n")
-        print(f"{'Pos':<4} {'#':<3} {'Driver Code':<12} {'Name':<25} {'Status'}")
-        print("-" * 75)
+        print(f"{'Pos':<4} {'#':<3} {'Code':<8} {'Driver Name':<28} {'Time / Gap':<15}")
+        print("-" * 90)
 
         positions = []
         for idx, row in sorted_results.iterrows():
@@ -109,21 +109,31 @@ async def test_fetch_results(race_id: str, is_sprint: bool = False):
             try:
                 driver_number = int(driver_number)
             except (ValueError, TypeError):
-                print(f"{idx+1:<4} {driver_number:<3} {'ERROR':<12} Could not parse driver number")
                 continue
 
             driver_code = number_to_code.get(driver_number)
 
             if not driver_code:
-                print(f"{idx+1:<4} {driver_number:<3} {'UNKNOWN':<12} Status: {row.get('Status', 'Unknown')}")
                 continue
 
             # Get driver name
             driver_data = next((d for d in DRIVERS if d["id"] == driver_code), {})
             driver_name = driver_data.get("full_name", "Unknown")
-            status = row.get("Status", "Finished")
 
-            print(f"{idx+1:<4} {driver_number:<3} {driver_code:<12} {driver_name:<25} {status}")
+            # Get time/gap info
+            time_info = ""
+            if 'Time' in row and row['Time']:
+                time_info = str(row['Time'])[:10]
+
+            delta = row.get('Delta') or row.get('Timedelta')
+            if delta:
+                time_info = f"+{str(delta)[:8]}"
+            elif time_info == "":
+                status = row.get("Status", "Finished")
+                if status:
+                    time_info = str(status)[:15]
+
+            print(f"{idx+1:<4} {driver_number:<3} {driver_code:<8} {driver_name:<28} {time_info:<15}")
             positions.append(driver_code)
 
         print(f"\n📋 Final order ({len(positions)} finished):")

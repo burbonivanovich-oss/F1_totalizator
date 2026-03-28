@@ -200,7 +200,21 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
             driver_data = DRIVER_BY_ID.get(driver_code, {})
             driver_name = driver_data.get("full_name", "Unknown")
 
-            lines.append(f"{position_number}. {driver_code} - {driver_name}")
+            # Get time and gap info
+            time_info = ""
+            if 'Time' in row and row['Time']:
+                time_info = f" | {str(row['Time'])[:10]}"  # Finished time
+
+            # Get gap/delta from other drivers
+            delta = row.get('Delta') or row.get('Timedelta')
+            if delta:
+                time_info += f" | +{str(delta)[:8]}"
+            elif 'Status' in row:
+                status_str = str(row['Status']).strip()
+                if status_str and status_str != "+0:00:00.000":
+                    time_info += f" | {status_str}"
+
+            lines.append(f"{position_number}. {driver_code} - {driver_name}{time_info}")
             positions.append(driver_code)
             position_number += 1
 
@@ -222,7 +236,8 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
                 if driver_code:
                     driver_data = DRIVER_BY_ID.get(driver_code, {})
                     driver_name = driver_data.get("full_name", "Unknown")
-                    dnf_drivers.append(f"• {driver_code} - {driver_name}")
+                    dnf_info = f" | {status}" if status else ""
+                    dnf_drivers.append(f"• {driver_code} - {driver_name}{dnf_info}")
 
         if dnf_drivers:
             lines.append("\n❌ Не закончили заезд:")
