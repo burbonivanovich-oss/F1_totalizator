@@ -84,12 +84,23 @@ async def test_fetch_results(race_id: str, is_sprint: bool = False):
             print(f"❌ No results found")
             return
 
-        print(f"\n✅ Found {len(results_df)} drivers\n")
+        # Filter only drivers who finished and sort by Position/ClassifiedPosition
+        finished_df = results_df[results_df['Status'] == '+0:00:00.000'].copy() if 'Status' in results_df.columns else results_df.copy()
+
+        # Sort by Position if available, otherwise by ClassifiedPosition
+        if 'Position' in finished_df.columns:
+            sorted_results = finished_df.sort_values('Position', na_position='last')
+        elif 'ClassifiedPosition' in finished_df.columns:
+            sorted_results = finished_df.sort_values('ClassifiedPosition', na_position='last')
+        else:
+            sorted_results = finished_df
+
+        print(f"\n✅ Found {len(results_df)} drivers ({len(sorted_results)} finished)\n")
         print(f"{'Pos':<4} {'#':<3} {'Driver Code':<12} {'Name':<25} {'Status'}")
         print("-" * 75)
 
         positions = []
-        for idx, row in results_df.iterrows():
+        for idx, row in sorted_results.iterrows():
             driver_number = row.get("DriverNumber") or row.get("Driver")
 
             if driver_number is None:

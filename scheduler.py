@@ -126,9 +126,21 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
             logger.warning(f"No results found for {race_name} {session_type}")
             return False
 
-        # Extract driver numbers in finishing order, skip DNF
+        # Filter only drivers who finished (Status = "Finished") and sort by Position/ClassifiedPosition
+        # DNF drivers won't be scored
+        finished_df = results_df[results_df['Status'] == '+0:00:00.000'].copy() if 'Status' in results_df.columns else results_df.copy()
+
+        # Sort by Position if available, otherwise by ClassifiedPosition
+        if 'Position' in finished_df.columns:
+            sorted_results = finished_df.sort_values('Position', na_position='last')
+        elif 'ClassifiedPosition' in finished_df.columns:
+            sorted_results = finished_df.sort_values('ClassifiedPosition', na_position='last')
+        else:
+            sorted_results = finished_df
+
+        # Extract driver numbers in finishing order
         positions = []
-        for idx, row in results_df.iterrows():
+        for idx, row in sorted_results.iterrows():
             driver_number = row.get("DriverNumber") or row.get("Driver")
 
             # Skip drivers who didn't finish or have no valid number
