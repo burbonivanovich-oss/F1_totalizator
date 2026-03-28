@@ -22,6 +22,32 @@ from config import ADMIN_IDS
 from handlers.calendar_handler import RACE_BY_ID, DRIVER_BY_ID
 from handlers.leaderboard import process_results_and_score
 
+# Mapping from race ID to FastF1 GP name (full names that FastF1 understands)
+RACE_ID_TO_FASTF1_NAME = {
+    "AUS": "Australia",
+    "CHN": "China",
+    "JPN": "Japan",
+    "MIA": "Miami",
+    "CAN": "Canada",
+    "MON": "Monaco",
+    "ESP": "Spain",
+    "AUT": "Austria",
+    "GBR": "Britain",
+    "BEL": "Belgium",
+    "HUN": "Hungary",
+    "NED": "Netherlands",
+    "ITA": "Italy",
+    "MAD": "Madrid",
+    "AZE": "Azerbaijan",
+    "SGP": "Singapore",
+    "USA": "United States",
+    "MEX": "Mexico",
+    "BRA": "Brazil",
+    "LVG": "Las Vegas",
+    "QAT": "Qatar",
+    "ABU": "Abu Dhabi",
+}
+
 
 async def result_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
@@ -71,9 +97,6 @@ async def result_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Test command to fetch and display race results from FastF1."""
     import logging
-    import asyncio
-    import fastf1
-
     logger = logging.getLogger(__name__)
 
     if update.effective_user.id not in ADMIN_IDS:
@@ -91,6 +114,9 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
             "По умолчанию ищет гонку (race)."
         )
         return
+
+    import asyncio
+    import fastf1
 
     race_id = args[0].upper().strip()
     race_type = args[1].lower().strip() if len(args) > 1 else "race"
@@ -113,14 +139,24 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
         code_to_number = {d["id"]: d["number"] for d in DRIVER_BY_ID.values()}
         number_to_code = {v: k for k, v in code_to_number.items()}
 
+        # Convert race ID to FastF1 GP name
+        gp_name = RACE_ID_TO_FASTF1_NAME.get(race_id)
+        if not gp_name:
+            await msg.edit_text(f"❌ Неизвестная гонка {race_id}")
+            return
+
         # Fetch from FastF1
         loop = asyncio.get_event_loop()
         session = await loop.run_in_executor(
             None,
-            lambda: fastf1.get_session(2026, race_id, "S" if is_sprint else "R")
+            lambda: fastf1.get_session(2026, gp_name, "S" if is_sprint else "R")
         )
 
-        logger.info(f"Fetching session for {race_id} {race_type}")
+        if not session:
+            await msg.edit_text(f"❌ Сессия не найдена для {race_name}")
+            return
+
+        logger.info(f"Fetching session for {race_id} ({gp_name}) {race_type}")
         await loop.run_in_executor(None, lambda: session.load())
 
         results_df = session.results

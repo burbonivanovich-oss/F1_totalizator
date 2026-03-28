@@ -12,6 +12,32 @@ import fastf1
 from data.drivers import DRIVERS
 from handlers.calendar_handler import RACES_2026
 
+# Mapping from race ID to FastF1 GP name
+RACE_ID_TO_FASTF1_NAME = {
+    "AUS": "Australia",
+    "CHN": "China",
+    "JPN": "Japan",
+    "MIA": "Miami",
+    "CAN": "Canada",
+    "MON": "Monaco",
+    "ESP": "Spain",
+    "AUT": "Austria",
+    "GBR": "Britain",
+    "BEL": "Belgium",
+    "HUN": "Hungary",
+    "NED": "Netherlands",
+    "ITA": "Italy",
+    "MAD": "Madrid",
+    "AZE": "Azerbaijan",
+    "SGP": "Singapore",
+    "USA": "United States",
+    "MEX": "Mexico",
+    "BRA": "Brazil",
+    "LVG": "Las Vegas",
+    "QAT": "Qatar",
+    "ABU": "Abu Dhabi",
+}
+
 
 async def test_fetch_results(race_id: str, is_sprint: bool = False):
     """Test fetching results from FastF1."""
@@ -31,12 +57,22 @@ async def test_fetch_results(race_id: str, is_sprint: bool = False):
         # Build driver number to code mapping
         number_to_code = {d["number"]: d["id"] for d in DRIVERS}
 
+        # Convert race ID to FastF1 GP name
+        gp_name = RACE_ID_TO_FASTF1_NAME.get(race_id)
+        if not gp_name:
+            print(f"❌ Unknown race ID {race_id}")
+            return
+
         # Fetch session
         loop = asyncio.get_event_loop()
         session = await loop.run_in_executor(
             None,
-            lambda: fastf1.get_session(2026, race_id, "S" if is_sprint else "R")
+            lambda: fastf1.get_session(2026, gp_name, "S" if is_sprint else "R")
         )
+
+        if not session:
+            print(f"❌ Could not find session for {race_name}")
+            return
 
         print(f"📡 Loading data from F1 API...")
         await loop.run_in_executor(None, lambda: session.load())
@@ -59,7 +95,12 @@ async def test_fetch_results(race_id: str, is_sprint: bool = False):
             if driver_number is None:
                 continue
 
-            driver_number = int(driver_number) if isinstance(driver_number, (int, float)) else driver_number
+            try:
+                driver_number = int(driver_number)
+            except (ValueError, TypeError):
+                print(f"{idx+1:<4} {driver_number:<3} {'ERROR':<12} Could not parse driver number")
+                continue
+
             driver_code = number_to_code.get(driver_number)
 
             if not driver_code:

@@ -11,7 +11,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from datetime import datetime, timedelta, timezone
 import logging
-import pandas as pd
 
 from telegram.ext import Application
 
@@ -25,7 +24,7 @@ AUTO_ANALYZE_DELAY_MINUTES = 10
 # FastF1 season year
 F1_SEASON = 2026
 
-# Mapping from race ID to FastF1 GP name
+# Mapping from race ID to FastF1 GP name (full names that FastF1 understands)
 RACE_ID_TO_FASTF1_NAME = {
     "AUS": "Australia",
     "CHN": "China",
@@ -89,15 +88,15 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
     import fastf1
 
     from database import save_result
-    from handlers.calendar_handler import DRIVER_BY_ID
+    from data.drivers import DRIVERS
 
     race_id = race["id"]
     race_name = race["name"]
     session_type = "Sprint" if is_sprint else "Race"
 
     try:
-        # Build mapping: driver_number -> driver_code
-        number_to_code = {d["number"]: d["id"] for d in DRIVER_BY_ID.values()}
+        # Build driver number to code mapping
+        number_to_code = {d["number"]: d["id"] for d in DRIVERS}
 
         # Convert race ID to FastF1 GP name
         gp_name = RACE_ID_TO_FASTF1_NAME.get(race_id)
@@ -108,8 +107,6 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
         # Load session data from FastF1
         # Run in thread pool since FastF1 is blocking
         loop = asyncio.get_event_loop()
-
-        # Fetch session using FastF1 GP name
         session = await loop.run_in_executor(
             None,
             lambda: fastf1.get_session(F1_SEASON, gp_name, "S" if is_sprint else "R")
@@ -124,60 +121,34 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
 
         # Get results DataFrame
         results_df = session.results
+
         if results_df is None or len(results_df) == 0:
             logger.warning(f"No results found for {race_name} {session_type}")
             return False
 
-        # Extract driver abbreviations/numbers in finishing order (by ClassifiedPosition)
+        # Extract driver numbers in finishing order, skip DNF
         positions = []
+        for idx, row in results_df.iterrows():
+            driver_number = row.get("DriverNumber") or row.get("Driver")
 
-        # Sort by ClassifiedPosition to get finishing order
-        sorted_results = results_df.sort_values('ClassifiedPosition', na_position='last')
-
-        logger.info(f"Processing {len(sorted_results)} results from FastF1")
-
-        for idx, row in sorted_results.iterrows():
-            # Try to get driver abbreviation or number
-            abbrev = row.get('Abbreviation')
-            driver_number = row.get('DriverNumber')
-
-            if pd.isna(abbrev) and pd.isna(driver_number):
+            # Skip drivers who didn't finish or have no valid number
+            if driver_number is None or driver_number == "":
                 continue
 
-            logger.debug(f"Processing driver: abbrev={abbrev}, number={driver_number}")
+            # Convert to int - handles numpy/pandas types too
+            try:
+                driver_number = int(driver_number)
+            except (ValueError, TypeError):
+                logger.warning(f"Could not convert driver number {driver_number} in {race_name}")
+                continue
 
-            # Try abbreviation first (3-letter code like VER, HAM, etc.)
-            driver_code = None
-            if not pd.isna(abbrev):
-                abbrev_str = str(abbrev).upper().strip()
-                logger.debug(f"Looking for abbreviation: {abbrev_str}")
-                # Direct match in DRIVER_BY_ID keys
-                if abbrev_str in DRIVER_BY_ID:
-                    driver_code = abbrev_str
-                else:
-                    # Search for matching driver name
-                    for code, driver in DRIVER_BY_ID.items():
-                        if driver.get("name", "").upper() == abbrev_str or code == abbrev_str:
-                            driver_code = code
-                            break
+            # Convert driver number to code
+            driver_code = number_to_code.get(driver_number)
+            if not driver_code:
+                logger.warning(f"Unknown driver number {driver_number} in {race_name}")
+                continue
 
-            # Fall back to driver number
-            if not driver_code and not pd.isna(driver_number):
-                try:
-                    # Always convert to int - handles numpy/pandas types too
-                    driver_num = int(driver_number)
-                    logger.debug(f"Looking for driver number: {driver_num} (type: {type(driver_num).__name__})")
-                    driver_code = number_to_code.get(driver_num)
-                    if driver_code:
-                        logger.debug(f"Found driver code for number {driver_num}: {driver_code}")
-                except (ValueError, TypeError) as e:
-                    logger.debug(f"Could not convert driver number {driver_number}: {e}")
-
-            if driver_code:
-                positions.append(driver_code)
-                logger.debug(f"Added driver {driver_code} to positions")
-            else:
-                logger.warning(f"Could not map driver {abbrev}/{driver_number} to code in {race_name}")
+            positions.append(driver_code)
 
         if not positions:
             logger.warning(f"No valid driver codes extracted for {race_name} {session_type}")
