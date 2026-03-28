@@ -166,9 +166,27 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
             logger.warning(f"No valid driver codes extracted for {race_name} {session_type}")
             return False
 
+        # Log DNF (Did Not Finish) drivers
+        dnf_drivers = []
+        for idx, row in results_df.iterrows():
+            status = str(row.get("Status", "")).strip()
+            if status and status != "+0:00:00.000" and "+" not in status[:1]:
+                driver_number = row.get("DriverNumber") or row.get("Driver")
+                if driver_number is not None:
+                    try:
+                        driver_number = int(driver_number)
+                        driver_code = number_to_code.get(driver_number)
+                        if driver_code:
+                            dnf_drivers.append(driver_code)
+                    except (ValueError, TypeError):
+                        pass
+
+        if dnf_drivers:
+            logger.info(f"DNF (Did Not Finish) in {race_name} {session_type}: {dnf_drivers}")
+
         # Save to database
         await save_result(race_id, is_sprint, positions)
-        logger.info(f"Fetched and saved {session_type} results for {race_name}: {positions}")
+        logger.info(f"Fetched and saved {session_type} results for {race_name}: {len(positions)} finished")
         return True
 
     except Exception as e:
