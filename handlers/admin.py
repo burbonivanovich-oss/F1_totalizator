@@ -71,11 +71,8 @@ async def result_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Test command to fetch and display race results from FastF1."""
     import logging
-    import os
-    import sys
-
-    # Ensure project root is in path
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import asyncio
+    import fastf1
 
     logger = logging.getLogger(__name__)
 
@@ -95,10 +92,6 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         return
 
-    import asyncio
-    import fastf1
-    from data.drivers import DRIVERS
-
     race_id = args[0].upper().strip()
     race_type = args[1].lower().strip() if len(args) > 1 else "race"
     is_sprint = race_type == "sprint"
@@ -116,8 +109,9 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
     msg = await update.message.reply_text(f"⏳ Загружаю результаты {session_type} {race_name}...")
 
     try:
-        # Build mapping
-        number_to_code = {d["number"]: d["id"] for d in DRIVERS}
+        # Build mapping from driver_id (code) to number
+        code_to_number = {d["id"]: d["number"] for d in DRIVER_BY_ID.values()}
+        number_to_code = {v: k for k, v in code_to_number.items()}
 
         # Fetch from FastF1
         loop = asyncio.get_event_loop()
@@ -150,7 +144,7 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
             if not driver_code:
                 continue
 
-            driver_data = next((d for d in DRIVERS if d["id"] == driver_code), {})
+            driver_data = DRIVER_BY_ID.get(driver_code, {})
             driver_name = driver_data.get("full_name", "Unknown")
 
             lines.append(f"{idx + 1}. {driver_code} - {driver_name}")
