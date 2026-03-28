@@ -62,19 +62,34 @@ const RACES = [
 
 const RACE_BY_ID = Object.fromEntries(RACES.map(r => [r.id, r]));
 
+/* ── Team colors for position badges ─────────────────────────────────────── */
+const TEAM_COLORS = {
+  "Mercedes":        "#00D4AA",  /* Mint */
+  "Ferrari":         "#DC0000",  /* Red */
+  "McLaren":         "#FF8700",  /* Orange */
+  "Audi":            "#550000",  /* Maroon */
+  "Alpine":          "#0082FA",  /* Light blue */
+  "Red Bull Racing": "#0600EF",  /* Blue */
+  "Racing Bulls":    "#5E72E4",  /* Purple-blue */
+  "Williams":        "#005AFF",  /* Bright blue */
+  "Haas":            "#EBEBEB",  /* Light gray */
+  "Cadillac":        "#C5C5C5",  /* Medium gray */
+  "Aston Martin":    "#229971",  /* Green */
+};
+
 /* ── Team logos (SVG) ────────────────────────────────────────────────────── */
 const TEAM_LOGOS = {
-  "Red Bull Racing": '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#3671C6"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">RB</text></svg>',
-  "Ferrari":         '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#E8002D"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">FER</text></svg>',
-  "Mercedes":        '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#00FFC8"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="#005F55" font-family="sans-serif">MB</text></svg>',
-  "McLaren":         '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#FF8000"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">MCL</text></svg>',
-  "Aston Martin":    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#229971"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="9" fill="white" font-family="sans-serif">AM</text></svg>',
-  "Alpine":          '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#005BBB"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">ALP</text></svg>',
-  "Audi":            '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#CC0000"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">AUD</text></svg>',
-  "Williams":        '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#003087"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">WIL</text></svg>',
-  "Cadillac":        '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#3B5998"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="9" fill="white" font-family="sans-serif">CAD</text></svg>',
-  "Racing Bulls":    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#6692FF"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="9" fill="white" font-family="sans-serif">RB</text></svg>',
-  "Haas":            '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#FF2D2D"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">HAS</text></svg>',
+  "Red Bull Racing": '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#0600EF"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">RB</text></svg>',
+  "Ferrari":         '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#DC0000"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">F</text></svg>',
+  "Mercedes":        '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#00D4AA"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">M</text></svg>',
+  "McLaren":         '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#FF8700"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">L</text></svg>',
+  "Aston Martin":    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#229971"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="9" fill="white" font-family="sans-serif">A</text></svg>',
+  "Alpine":          '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#0082FA"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">A</text></svg>',
+  "Audi":            '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#550000"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">A</text></svg>',
+  "Williams":        '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#005AFF"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">W</text></svg>',
+  "Cadillac":        '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#C5C5C5"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="9" fill="#333" font-family="sans-serif">C</text></svg>',
+  "Racing Bulls":    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#5E72E4"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="9" fill="white" font-family="sans-serif">B</text></svg>',
+  "Haas":            '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#EBEBEB"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="#333" font-family="sans-serif">H</text></svg>',
 };
 
 /* ── URL params ──────────────────────────────────────────────────────────── */
@@ -157,15 +172,16 @@ function renderList() {
     const driver = driverMap[id];
     if (!driver) return;
 
-    const pos      = idx + 1;
-    const inTop    = pos <= TOP_N;
-    const logoSvg  = TEAM_LOGOS[driver.team] || '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#666"/></svg>';
+    const pos        = idx + 1;
+    const inTop      = pos <= TOP_N;
+    const teamColor  = TEAM_COLORS[driver.team] || "#999";
+    const logoSvg    = TEAM_LOGOS[driver.team] || '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#666"/></svg>';
 
     const li = document.createElement("li");
     li.className  = `driver-item ${inTop ? "in-top" : "out-top"}`;
     li.dataset.id = id;
     li.innerHTML  = `
-      <div class="pos-badge">${pos}</div>
+      <div class="pos-badge" style="background-color: ${teamColor}">${pos}</div>
       <div class="team-logo">${logoSvg}</div>
       <div class="driver-info">
         <div class="driver-code">${driver.id}</div>
@@ -199,12 +215,19 @@ function initSortable() {
 
 /* ── Update top-n classes without re-rendering ────────────────────────────── */
 function updateTopNClasses() {
+  const driverMap = Object.fromEntries(DRIVERS.map(d => [d.id, d]));
   const allItems = [...$list.querySelectorAll(".driver-item"), ...$listTail.querySelectorAll(".driver-item")];
   allItems.forEach((item, idx) => {
     const pos = idx + 1;
     const inTop = pos <= TOP_N;
     const badge = item.querySelector(".pos-badge");
-    if (badge) badge.textContent = pos;
+    if (badge) {
+      badge.textContent = pos;
+      const driverId = item.dataset.id;
+      const driver = driverMap[driverId];
+      const teamColor = TEAM_COLORS[driver?.team] || "#999";
+      badge.style.backgroundColor = teamColor;
+    }
     item.classList.toggle("in-top", inTop);
     item.classList.toggle("out-top", !inTop);
   });
