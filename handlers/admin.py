@@ -167,6 +167,7 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
         # Extract positions
         positions = []
         lines = [f"🏁 <b>Результаты {session_type} {race_name}</b>\n"]
+        position_number = 1
 
         for idx, row in results_df.iterrows():
             driver_number = row.get("DriverNumber") or row.get("Driver")
@@ -188,8 +189,9 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
             driver_data = DRIVER_BY_ID.get(driver_code, {})
             driver_name = driver_data.get("full_name", "Unknown")
 
-            lines.append(f"{idx + 1}. {driver_code} - {driver_name}")
+            lines.append(f"{position_number}. {driver_code} - {driver_name}")
             positions.append(driver_code)
+            position_number += 1
 
         lines.append(f"\n✅ Финишировало: {len(positions)}")
 
