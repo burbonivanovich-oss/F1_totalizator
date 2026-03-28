@@ -18,8 +18,11 @@ from handlers.calendar_handler import RACES_2026
 
 logger = logging.getLogger(__name__)
 
-# Delay before fetching and analyzing results (in minutes)
-AUTO_ANALYZE_DELAY_MINUTES = 10
+# Delay before first result check (in minutes)
+FIRST_RESULT_CHECK_DELAY_MINUTES = 120  # 2 hours after race ends
+
+# Retry delays for results checking (in minutes) - exponential backoff
+RESULT_RETRY_DELAYS = [60, 120, 240]  # 1h, 2h, 4h if previous attempts failed
 
 # FastF1 season year
 F1_SEASON = 2026
@@ -194,31 +197,84 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
         return False
 
 
-async def _auto_analyze_race(bot, race: dict, is_sprint: bool):
-    """Auto-analyze race results: fetch from FastF1, save, and calculate scores."""
-    from database import get_result  # lazy import
+async def _check_and_fetch_results(bot, race: dict, is_sprint: bool, attempt: int = 0, app=None):
+    """
+    Check for race results and fetch if available.
+    If not available, schedule retry. If available, schedule notification.
+    """
+    from database import get_result
     from handlers.leaderboard import process_results_and_score
 
     race_id = race["id"]
     kind = "спринта" if is_sprint else "гонки"
     race_name = f"{race['flag']} {race['name']}"
+    session_type = "Sprint" if is_sprint else "Race"
 
     # Try to fetch results from FastF1
+    logger.info(f"[Attempt {attempt + 1}] Checking results for {race_name} {session_type}")
     fetched = await _fetch_and_save_results(race, is_sprint)
 
     # Check if results exist in database (either fetched or manually entered)
     result = await get_result(race_id, is_sprint)
+
     if not result:
-        logger.info(f"No results for {race_name} ({kind}), skipping auto-analysis")
+        # Results not available yet - schedule retry
+        if attempt < len(RESULT_RETRY_DELAYS):
+            next_delay_minutes = RESULT_RETRY_DELAYS[attempt]
+            next_check_time = datetime.now(timezone.utc) + timedelta(minutes=next_delay_minutes)
+            logger.info(
+                f"Results not available for {race_name}. "
+                f"Retry in {next_delay_minutes} min (attempt {attempt + 2}/{len(RESULT_RETRY_DELAYS) + 1})"
+            )
+            # Schedule next retry
+            if app:
+                app.job_queue.run_once(
+                    lambda ctx, r=race, s=is_sprint, att=attempt+1, a=app: (
+                        _check_and_fetch_results(ctx.bot, r, s, att, a)
+                    ),
+                    when=next_check_time,
+                    name=f"retry_results_{race_id}_{'sprint' if is_sprint else 'race'}_attempt{attempt+2}",
+                )
+        else:
+            logger.warning(
+                f"Results for {race_name} not found after {len(RESULT_RETRY_DELAYS) + 1} attempts. "
+                f"Please enter manually."
+            )
         return
 
-    try:
-        summary = await process_results_and_score(
-            race_id, is_sprint, result["positions"], bot
+    # Results found! Schedule notification with 10-minute delay
+    logger.info(f"✅ Results found for {race_name}! Scheduling notifications in 10 minutes...")
+    notification_time = datetime.now(timezone.utc) + timedelta(minutes=10)
+
+    if app:
+        app.job_queue.run_once(
+            lambda ctx, rid=race_id, s=is_sprint, pos=result["positions"]: (
+                _notify_results(ctx.bot, rid, s, pos)
+            ),
+            when=notification_time,
+            name=f"notify_results_{race_id}_{'sprint' if is_sprint else 'race'}",
         )
-        logger.info(f"Auto-analyzed {race_name} ({kind})")
+
+
+async def _notify_results(bot, race_id: str, is_sprint: bool, positions: list[str]):
+    """Notify users of race results and calculate their scores."""
+    from database import get_result
+    from handlers.calendar_handler import RACE_BY_ID
+    from handlers.leaderboard import process_results_and_score
+
+    race = RACE_BY_ID.get(race_id)
+    if not race:
+        logger.error(f"Race {race_id} not found in calendar")
+        return
+
+    kind = "спринта" if is_sprint else "гонки"
+    race_name = f"{race['flag']} {race['name']}"
+
+    try:
+        summary = await process_results_and_score(race_id, is_sprint, positions, bot)
+        logger.info(f"✅ Notified users about {race_name} ({kind}) results")
     except Exception as e:
-        logger.exception(f"Failed to auto-analyze {race_name} ({kind})")
+        logger.exception(f"Failed to notify results for {race_name}")
 
 
 def register_race_jobs(app: Application):
@@ -254,13 +310,13 @@ def register_race_jobs(app: Application):
                     name=f"remind_5m_{race_id}_{'sprint' if is_sprint else 'race'}",
                 )
 
-            # Auto-analyze results after race ends
-            auto_analyze_time = race_time + timedelta(minutes=AUTO_ANALYZE_DELAY_MINUTES)
-            if auto_analyze_time > now:
+            # Check for race results after initial delay
+            first_check_time = race_time + timedelta(minutes=FIRST_RESULT_CHECK_DELAY_MINUTES)
+            if first_check_time > now:
                 jq.run_once(
-                    lambda ctx, r=race, s=sprint_flag: _auto_analyze_race(ctx.bot, r, s),
-                    when=auto_analyze_time,
-                    name=f"auto_analyze_{race_id}_{'sprint' if is_sprint else 'race'}",
+                    lambda ctx, r=race, s=sprint_flag, a=app: _check_and_fetch_results(ctx.bot, r, s, 0, a),
+                    when=first_check_time,
+                    name=f"check_results_{race_id}_{'sprint' if is_sprint else 'race'}",
                 )
 
     logger.info("Race reminder and auto-analysis jobs registered.")
