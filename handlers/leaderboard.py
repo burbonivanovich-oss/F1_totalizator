@@ -45,21 +45,71 @@ async def process_results_and_score(
     Admin helper: save race result, compute scores for all participants,
     and notify them. Returns a summary string.
     """
+    import logging
     from data.scoring import calculate_score
 
+    logger = logging.getLogger(__name__)
+
+    # ── Validate results ─────────────────────────────────────────────────────
+    expected_count = 10 if is_sprint else 16
+
+    if not positions or not isinstance(positions, list):
+        error_msg = f"Invalid race results for {race_id}: empty or non-list positions"
+        logger.error(error_msg)
+        return f"❌ {error_msg}"
+
+    if len(positions) != expected_count:
+        error_msg = (
+            f"Invalid race results for {race_id}: got {len(positions)} results, "
+            f"expected {expected_count}"
+        )
+        logger.error(error_msg)
+        return f"❌ {error_msg}"
+
+    if len(set(positions)) != len(positions):
+        duplicates = [d for d in positions if positions.count(d) > 1]
+        error_msg = (
+            f"Duplicate drivers in race results for {race_id}: {', '.join(set(duplicates))}"
+        )
+        logger.error(error_msg)
+        return f"❌ {error_msg}"
+
+    if None in positions or "" in positions:
+        error_msg = f"Empty values in race results for {race_id}"
+        logger.error(error_msg)
+        return f"❌ {error_msg}"
+
+    # ── Save and process ────────────────────────────────────────────────────
     await db.save_result(race_id, is_sprint, positions)
     predictions = await db.get_all_predictions_for_race(race_id, is_sprint)
 
     if not predictions:
+        logger.info(f"No predictions for race {race_id}")
         return "Прогнозов на эту гонку не было."
 
     summary_lines = []
     for pred in predictions:
+        # Validate prediction before scoring
+        if not pred.get("positions") or not isinstance(pred["positions"], list):
+            logger.warning(
+                f"Skipping invalid prediction for user {pred['telegram_id']} "
+                f"in race {race_id}"
+            )
+            continue
+
         result = calculate_score(
             {"positions": pred["positions"]},
             {"positions": positions},
             is_sprint=is_sprint,
         )
+
+        # Check if scoring returned error
+        if result["total"] == 0 and result["breakdown"] and result["breakdown"][0].startswith("❌"):
+            logger.error(
+                f"Scoring error for user {pred['telegram_id']} in race {race_id}: "
+                f"{result['breakdown'][0]}"
+            )
+            continue
         existing_score = await db.get_score(pred["user_id"], race_id, is_sprint)
         await db.save_score(
             pred["user_id"], race_id, is_sprint,

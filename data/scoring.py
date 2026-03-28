@@ -41,9 +41,57 @@ def calculate_score(
     """
     cfg = SCORING_CONFIG
     race_type = "sprint" if is_sprint else "race"
+    expected_count = 10 if is_sprint else 16
 
     pred_list = prediction.get("positions", [])
     result_list = result.get("positions", [])
+
+    # ── Validation ───────────────────────────────────────────────────────────
+    # Check for empty lists
+    if not pred_list or not result_list:
+        return {"total": 0, "breakdown": ["❌ Пустой список результатов или прогноза"]}
+
+    # Check for correct list length
+    if len(pred_list) != expected_count:
+        return {
+            "total": 0,
+            "breakdown": [
+                f"❌ Неверное количество позиций в прогнозе: {len(pred_list)} "
+                f"(ожидается {expected_count})"
+            ],
+        }
+
+    if len(result_list) != expected_count:
+        return {
+            "total": 0,
+            "breakdown": [
+                f"❌ Неверное количество результатов: {len(result_list)} "
+                f"(ожидается {expected_count})"
+            ],
+        }
+
+    # Check for duplicate drivers in prediction
+    if len(set(pred_list)) != len(pred_list):
+        duplicates = [d for d in pred_list if pred_list.count(d) > 1]
+        return {
+            "total": 0,
+            "breakdown": [f"❌ Дублирование водителей в прогнозе: {', '.join(set(duplicates))}"],
+        }
+
+    # Check for duplicate drivers in result
+    if len(set(result_list)) != len(result_list):
+        duplicates = [d for d in result_list if result_list.count(d) > 1]
+        return {
+            "total": 0,
+            "breakdown": [f"⚠️ Дублирование в результатах FastF1: {', '.join(set(duplicates))}"],
+        }
+
+    # Check for None or empty values
+    if None in pred_list or "" in pred_list:
+        return {"total": 0, "breakdown": ["❌ Пустые значения в прогнозе"]}
+
+    if None in result_list or "" in result_list:
+        return {"total": 0, "breakdown": ["⚠️ Пустые значения в результатах FastF1"]}
 
     # Build position maps (1-indexed)
     pred_positions = {i + 1: driver for i, driver in enumerate(pred_list)}
