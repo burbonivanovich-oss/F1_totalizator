@@ -148,65 +148,29 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
         # Fetch from FastF1
         loop = asyncio.get_event_loop()
-        try:
-            session = await asyncio.wait_for(
-                loop.run_in_executor(
-                    None,
-                    lambda: fastf1.get_session(2026, gp_name, "S" if is_sprint else "R")
-                ),
-                timeout=15.0  # 15 second timeout for session init
-            )
-        except asyncio.TimeoutError:
-            await msg.edit_text(
-                f"⏱ Превышено время ожидания при подключении к FastF1.\n"
-                f"Попробуй ещё раз позже."
-            )
-            return
+        session = await loop.run_in_executor(
+            None,
+            lambda: fastf1.get_session(2026, gp_name, "S" if is_sprint else "R")
+        )
 
         if not session:
             await msg.edit_text(f"❌ Сессия не найдена для {race_name}")
             return
 
         logger.info(f"Fetching session for {race_id} ({gp_name}) {race_type}")
-        try:
-            # Load with timeout to prevent hanging
-            await asyncio.wait_for(
-                loop.run_in_executor(None, lambda: session.load()),
-                timeout=30.0  # 30 second timeout
-            )
-        except asyncio.TimeoutError:
-            await msg.edit_text(
-                f"⏱ Превышено время ожидания при загрузке данных FastF1.\n"
-                f"Попробуй ещё раз позже или введи результаты вручную: /result CHN race VER LEC HAM..."
-            )
-            return
-        except Exception as e:
-            logger.exception(f"Error loading session data: {e}")
-            await msg.edit_text(f"❌ Ошибка при загрузке данных: {str(e)[:100]}")
-            return
+        await loop.run_in_executor(None, lambda: session.load())
 
         results_df = session.results
         if results_df is None or len(results_df) == 0:
             await msg.edit_text(f"❌ Результаты не найдены")
             return
 
-        # Filter only drivers who finished (Status = "Finished") and sort by Position/ClassifiedPosition
-        finished_df = results_df[results_df['Status'] == '+0:00:00.000'].copy() if 'Status' in results_df.columns else results_df.copy()
-
-        # Sort by Position if available, otherwise by ClassifiedPosition
-        if 'Position' in finished_df.columns:
-            sorted_results = finished_df.sort_values('Position', na_position='last')
-        elif 'ClassifiedPosition' in finished_df.columns:
-            sorted_results = finished_df.sort_values('ClassifiedPosition', na_position='last')
-        else:
-            sorted_results = finished_df
-
-        # Extract positions (finished drivers)
+        # Extract positions in order from DataFrame
         positions = []
         lines = [f"🏁 <b>Результаты {session_type} {race_name}</b>\n"]
         position_number = 1
 
-        for idx, row in sorted_results.iterrows():
+        for idx, row in results_df.iterrows():
             driver_number = row.get("DriverNumber") or row.get("Driver")
 
             if driver_number is None:
@@ -226,63 +190,11 @@ async def test_results_command(update: Update, context: ContextTypes.DEFAULT_TYP
             driver_data = DRIVER_BY_ID.get(driver_code, {})
             driver_name = driver_data.get("full_name", "Unknown")
 
-            # Get time and gap info
-            time_info = ""
-            if 'Time' in row and row['Time']:
-                time_info = f" | {str(row['Time'])[:10]}"  # Finished time
-
-            # Get gap/delta from other drivers
-            delta = row.get('Delta') or row.get('Timedelta')
-            if delta:
-                time_info += f" | +{str(delta)[:8]}"
-            elif 'Status' in row:
-                status_str = str(row['Status']).strip()
-                if status_str and status_str != "+0:00:00.000":
-                    time_info += f" | {status_str}"
-
-            lines.append(f"{position_number}. {driver_code} - {driver_name}{time_info}")
+            lines.append(f"{position_number}. {driver_code} - {driver_name}")
             positions.append(driver_code)
             position_number += 1
 
-        lines.append(f"\n✅ Финишировало: {len(positions)}")
-
-        # Show DNF (Did Not Finish) drivers
-        dnf_drivers = []
-        for idx, row in results_df.iterrows():
-            status = str(row.get("Status", "")).strip()
-            if status and status != "+0:00:00.000" and "+" not in status[:1]:  # DNF status doesn't start with +
-                driver_number = row.get("DriverNumber") or row.get("Driver")
-                if driver_number is None:
-                    continue
-                try:
-                    driver_number = int(driver_number)
-                except (ValueError, TypeError):
-                    continue
-                driver_code = number_to_code.get(driver_number)
-                if driver_code:
-                    driver_data = DRIVER_BY_ID.get(driver_code, {})
-                    driver_name = driver_data.get("full_name", "Unknown")
-                    dnf_info = f" | {status}" if status else ""
-                    dnf_drivers.append(f"• {driver_code} - {driver_name}{dnf_info}")
-
-        if dnf_drivers:
-            lines.append("\n❌ Не закончили заезд:")
-            lines.extend(dnf_drivers)
-
-        # Show DNS (Did Not Start) drivers - those in our driver list but not in results
-        all_driver_codes = set(DRIVER_BY_ID.keys())
-        finished_and_dnf = set(positions) | {code for _, row in results_df.iterrows()
-                                              for code in [number_to_code.get(int(row.get("DriverNumber") or row.get("Driver")))]
-                                              if code}
-        dns_drivers = []
-        for code in all_driver_codes - finished_and_dnf:
-            driver_data = DRIVER_BY_ID.get(code, {})
-            driver_name = driver_data.get("full_name", "Unknown")
-            dns_drivers.append(f"• {code} - {driver_name}")
-
-        if dns_drivers:
-            lines.append("\n⚠️ Не участвовали в заезде:")
-            lines.extend(sorted(dns_drivers))
+        lines.append(f"\n✅ Гонщиков в результатах: {len(positions)}")
 
         await msg.edit_text("\n".join(lines), parse_mode="HTML")
 

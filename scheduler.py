@@ -110,31 +110,17 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
         # Load session data from FastF1
         # Run in thread pool since FastF1 is blocking
         loop = asyncio.get_event_loop()
-        try:
-            session = await asyncio.wait_for(
-                loop.run_in_executor(
-                    None,
-                    lambda: fastf1.get_session(F1_SEASON, gp_name, "S" if is_sprint else "R")
-                ),
-                timeout=20.0  # 20 second timeout
-            )
-        except asyncio.TimeoutError:
-            logger.warning(f"FastF1 session init timeout for {race_name} {session_type}")
-            return False
+        session = await loop.run_in_executor(
+            None,
+            lambda: fastf1.get_session(F1_SEASON, gp_name, "S" if is_sprint else "R")
+        )
 
         if not session:
             logger.warning(f"Could not find session for {race_name} {session_type}")
             return False
 
         # Load results (this downloads data from F1 API)
-        try:
-            await asyncio.wait_for(
-                loop.run_in_executor(None, lambda: session.load()),
-                timeout=45.0  # 45 second timeout for data loading
-            )
-        except asyncio.TimeoutError:
-            logger.warning(f"FastF1 data load timeout for {race_name} {session_type}")
-            return False
+        await loop.run_in_executor(None, lambda: session.load())
 
         # Get results DataFrame
         results_df = session.results
@@ -143,24 +129,12 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
             logger.warning(f"No results found for {race_name} {session_type}")
             return False
 
-        # Filter only drivers who finished (Status = "Finished") and sort by Position/ClassifiedPosition
-        # DNF drivers won't be scored
-        finished_df = results_df[results_df['Status'] == '+0:00:00.000'].copy() if 'Status' in results_df.columns else results_df.copy()
-
-        # Sort by Position if available, otherwise by ClassifiedPosition
-        if 'Position' in finished_df.columns:
-            sorted_results = finished_df.sort_values('Position', na_position='last')
-        elif 'ClassifiedPosition' in finished_df.columns:
-            sorted_results = finished_df.sort_values('ClassifiedPosition', na_position='last')
-        else:
-            sorted_results = finished_df
-
-        # Extract driver numbers in finishing order
+        # Extract driver numbers in order from DataFrame (simple approach)
         positions = []
-        for idx, row in sorted_results.iterrows():
+        for idx, row in results_df.iterrows():
             driver_number = row.get("DriverNumber") or row.get("Driver")
 
-            # Skip drivers who didn't finish or have no valid number
+            # Skip if no valid number
             if driver_number is None or driver_number == "":
                 continue
 
@@ -168,13 +142,13 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
             try:
                 driver_number = int(driver_number)
             except (ValueError, TypeError):
-                logger.warning(f"Could not convert driver number {driver_number} in {race_name}")
+                logger.debug(f"Could not convert driver number {driver_number} in {race_name}")
                 continue
 
             # Convert driver number to code
             driver_code = number_to_code.get(driver_number)
             if not driver_code:
-                logger.warning(f"Unknown driver number {driver_number} in {race_name}")
+                logger.debug(f"Unknown driver number {driver_number} in {race_name}")
                 continue
 
             positions.append(driver_code)
@@ -183,27 +157,9 @@ async def _fetch_and_save_results(race: dict, is_sprint: bool) -> bool:
             logger.warning(f"No valid driver codes extracted for {race_name} {session_type}")
             return False
 
-        # Log DNF (Did Not Finish) drivers
-        dnf_drivers = []
-        for idx, row in results_df.iterrows():
-            status = str(row.get("Status", "")).strip()
-            if status and status != "+0:00:00.000" and "+" not in status[:1]:
-                driver_number = row.get("DriverNumber") or row.get("Driver")
-                if driver_number is not None:
-                    try:
-                        driver_number = int(driver_number)
-                        driver_code = number_to_code.get(driver_number)
-                        if driver_code:
-                            dnf_drivers.append(driver_code)
-                    except (ValueError, TypeError):
-                        pass
-
-        if dnf_drivers:
-            logger.info(f"DNF (Did Not Finish) in {race_name} {session_type}: {dnf_drivers}")
-
         # Save to database
         await save_result(race_id, is_sprint, positions)
-        logger.info(f"Fetched and saved {session_type} results for {race_name}: {len(positions)} finished")
+        logger.info(f"Fetched and saved {session_type} results for {race_name}: {len(positions)} drivers")
         return True
 
     except Exception as e:
