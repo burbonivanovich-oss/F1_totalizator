@@ -250,3 +250,91 @@ async def get_user_scores(user_id: int) -> list[dict]:
         """, (user_id,)) as cur:
             rows = await cur.fetchall()
             return [dict(r) for r in rows]
+
+
+async def get_user_full_stats(user_id: int) -> dict:
+    """Comprehensive per-user statistics: points, accuracy, rank."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+
+        async with db.execute("""
+            SELECT
+                COUNT(*)          AS races_scored,
+                COALESCE(SUM(points), 0)   AS total_points,
+                COALESCE(MAX(points), 0)   AS best_race,
+                COALESCE(AVG(points), 0.0) AS avg_points
+            FROM scores WHERE user_id = ?
+        """, (user_id,)) as cur:
+            score_row = dict(await cur.fetchone() or {})
+
+        async with db.execute(
+            "SELECT COUNT(*) AS predictions_made FROM predictions WHERE user_id = ?",
+            (user_id,),
+        ) as cur:
+            pred_row = dict(await cur.fetchone() or {})
+
+        # Cross predictions with actual results to compute accuracy
+        async with db.execute("""
+            SELECT p.positions AS pred_pos, r.positions AS result_pos
+            FROM predictions p
+            JOIN results r ON r.race_id = p.race_id AND r.is_sprint = p.is_sprint
+            WHERE p.user_id = ?
+        """, (user_id,)) as cur:
+            matched = [dict(r) for r in await cur.fetchall()]
+
+        exact_hits = top_hits = total_slots = p1_correct = 0
+        p1_total = len(matched)
+
+        for row in matched:
+            try:
+                pred = json.loads(row["pred_pos"])
+                result = json.loads(row["result_pos"])
+                result_set = set(result)
+
+                for i, driver in enumerate(pred):
+                    total_slots += 1
+                    if i < len(result) and result[i] == driver:
+                        exact_hits += 1
+                    elif driver in result_set:
+                        top_hits += 1
+
+                if pred and result and pred[0] == result[0]:
+                    p1_correct += 1
+            except (json.JSONDecodeError, IndexError, KeyError):
+                pass
+
+        # Global rank: count users with strictly more points
+        async with db.execute("""
+            SELECT COUNT(*) + 1 AS rank FROM (
+                SELECT user_id, SUM(points) AS pts
+                FROM scores GROUP BY user_id
+            ) WHERE pts > COALESCE(
+                (SELECT SUM(points) FROM scores WHERE user_id = ?), 0
+            )
+        """, (user_id,)) as cur:
+            rank_row = await cur.fetchone()
+
+        return {
+            "races_scored":      score_row.get("races_scored", 0),
+            "total_points":      score_row.get("total_points", 0),
+            "best_race":         score_row.get("best_race", 0),
+            "avg_points":        float(score_row.get("avg_points", 0)),
+            "predictions_made":  pred_row.get("predictions_made", 0),
+            "exact_hits":        exact_hits,
+            "top_hits":          top_hits,
+            "total_slots":       total_slots,
+            "p1_correct":        p1_correct,
+            "p1_total":          p1_total,
+            "rank":              rank_row[0] if rank_row else 1,
+        }
+
+
+async def get_all_users() -> list[dict]:
+    """Return all registered users ordered by registration date."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM users ORDER BY created_at ASC"
+        ) as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]

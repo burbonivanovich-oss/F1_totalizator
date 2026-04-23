@@ -16,8 +16,9 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("📅 Календарь", callback_data="menu:calendar"),
          InlineKeyboardButton("🏁 Прогноз", callback_data="menu:predict")],
         [InlineKeyboardButton("📋 Мои прогнозы", callback_data="menu:my_predictions"),
-         InlineKeyboardButton("🏆 Лидерборд", callback_data="menu:leaderboard")],
-        [InlineKeyboardButton("🏎 Гонщики", callback_data="menu:drivers")],
+         InlineKeyboardButton("📊 Статистика", callback_data="menu:stats")],
+        [InlineKeyboardButton("🏆 Лидерборд", callback_data="menu:leaderboard"),
+         InlineKeyboardButton("🏎 Гонщики", callback_data="menu:drivers")],
     ])
 
 
@@ -83,6 +84,10 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == "leaderboard":
         from handlers.leaderboard import show_leaderboard
         await show_leaderboard(update, context)
+
+    elif action == "stats":
+        from handlers.stats import show_stats
+        await show_stats(update, context)
 
     elif action == "drivers":
         from handlers.calendar_handler import show_drivers
