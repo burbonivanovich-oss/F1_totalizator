@@ -227,9 +227,23 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
             return
 
     # Save
-    tg_user    = update.effective_user
-    user_db_id = await db.upsert_user(tg_user.id, tg_user.username, tg_user.full_name)
-    await db.save_prediction(user_db_id, race_id, is_sprint, positions)
+    tg_user = update.effective_user
+    try:
+        user_db_id = await db.upsert_user(tg_user.id, tg_user.username, tg_user.full_name)
+        await db.save_prediction(user_db_id, race_id, is_sprint, positions)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            "Failed to save prediction for tg_id=%s race=%s is_sprint=%s",
+            tg_user.id, race_id, is_sprint,
+        )
+        await update.message.reply_text(
+            "❌ Не удалось сохранить прогноз. Попробуй ещё раз через пару минут.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("◀️ Главное меню", callback_data="main_menu")
+            ]]),
+        )
+        return
 
     kind = "спринт" if is_sprint else "гонку"
     podium = "\n".join(
