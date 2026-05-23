@@ -11,7 +11,12 @@ async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = await db.get_user_by_telegram_id(tg_user.id)
     if not user:
-        await query.edit_message_text("Сначала запусти /start")
+        await query.edit_message_text(
+            "Сначала запусти /start",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("◀️ Главное меню", callback_data="main_menu")
+            ]]),
+        )
         return
 
     stats = await db.get_user_full_stats(user["id"])

@@ -270,7 +270,14 @@ function confirmPrediction() {
   }
   const payload = { race_id: RACE_ID, is_sprint: IS_SPRINT, positions };
 
-  if (!confirm(`Подтвердить прогноз?\n\nТоп-3:\nP1: ${positions[0]}\nP2: ${positions[1]}\nP3: ${positions[2]}\n…`))
+  const driverName = (id) => {
+    const d = DRIVERS.find(x => x.id === id);
+    return d ? `${d.full_name}` : id;
+  };
+  const podiumPreview = positions.slice(0, 3)
+    .map((id, i) => `P${i + 1}: ${driverName(id)} (${id})`)
+    .join("\n");
+  if (!confirm(`Подтвердить прогноз?\n\nТоп-3:\n${podiumPreview}\n…и ещё ${TOP_N - 3}`))
     return;
 
   if (tg) {

@@ -41,9 +41,20 @@ def calculate_score(
     """
     cfg = SCORING_CONFIG
     race_type = "sprint" if is_sprint else "race"
+    expected_len = 10 if is_sprint else 16
 
     pred_list = prediction.get("positions", [])
     result_list = result.get("positions", [])
+
+    # Guard against corrupted data: scoring requires both lists in expected shape.
+    if not isinstance(pred_list, list) or not isinstance(result_list, list):
+        return {"total": 0, "breakdown": ["Ошибка: некорректные данные прогноза/результата."]}
+    if len(pred_list) != expected_len:
+        return {"total": 0, "breakdown": [f"Ошибка: ожидалось {expected_len} позиций в прогнозе, получено {len(pred_list)}."]}
+    if len(result_list) == 0:
+        return {"total": 0, "breakdown": ["Ошибка: пустой список результатов гонки."]}
+    if len(set(pred_list)) != len(pred_list):
+        return {"total": 0, "breakdown": ["Ошибка: в прогнозе есть дублирующиеся гонщики."]}
 
     # Build position maps (1-indexed)
     pred_positions = {i + 1: driver for i, driver in enumerate(pred_list)}
