@@ -196,6 +196,21 @@ async def _auto_analyze_race(context, race: dict, is_sprint: bool, attempt: int 
                 "Failed to fetch results for %s (%s) after %d attempts",
                 race_name, kind, MAX_RETRY_ATTEMPTS,
             )
+            # Notify admins so they can run /reanalyze manually
+            from config import ADMIN_IDS
+            for admin_id in ADMIN_IDS:
+                try:
+                    await bot.send_message(
+                        admin_id,
+                        f"⚠️ <b>Не удалось получить результаты</b>\n\n"
+                        f"{race_name} — {kind}\n"
+                        f"После {MAX_RETRY_ATTEMPTS} попыток FastF1 не вернул данные.\n\n"
+                        f"Запусти вручную: <code>/reanalyze {race_id} "
+                        f"{'sprint' if is_sprint else 'race'}</code>",
+                        parse_mode="HTML",
+                    )
+                except Exception:
+                    logger.exception("Failed to notify admin %s", admin_id)
         return
 
     result = await get_result(race_id, is_sprint)

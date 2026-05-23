@@ -2,6 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 import database as db
+from handlers.calendar_handler import RACE_BY_ID
 
 
 MEDALS = ["🥇", "🥈", "🥉"]
@@ -54,6 +55,10 @@ async def process_results_and_score(
     if not predictions:
         return "Прогнозов на эту гонку не было."
 
+    race = RACE_BY_ID.get(race_id, {})
+    race_label = f"{race.get('flag', '')} {race.get('name', race_id)}".strip()
+    kind = "спринта" if is_sprint else "гонки"
+
     summary_lines = []
     for pred in predictions:
         result = calculate_score(
@@ -67,7 +72,11 @@ async def process_results_and_score(
             result["total"], result["breakdown"],
         )
         breakdown_text = "\n".join(result["breakdown"])
-        header = "🔄 <b>Результаты пересчитаны</b>" if existing_score else f"📊 <b>Результаты {'спринта' if is_sprint else 'гонки'}</b>"
+        action = "пересчитаны" if existing_score else "подсчитаны"
+        header = (
+            f"📊 <b>Результаты {kind} {race_label}</b> {action}\n\n"
+            f"Твои очки: <b>{result['total']:+d}</b>"
+        )
         nav_kb = InlineKeyboardMarkup([
             [
                 InlineKeyboardButton("📋 Мои прогнозы", callback_data="menu:my_predictions"),
@@ -77,8 +86,7 @@ async def process_results_and_score(
         try:
             await bot.send_message(
                 pred["telegram_id"],
-                f"{header}\n\n"
-                f"Твои очки: <b>{result['total']}</b>\n\n{breakdown_text}",
+                f"{header}\n\n{breakdown_text}",
                 parse_mode="HTML",
                 reply_markup=nav_kb,
             )
