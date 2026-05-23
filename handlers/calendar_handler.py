@@ -27,18 +27,32 @@ def get_driver_short(driver_id: str) -> str:
     return f"{d['name']} ({d['team']})"
 
 
-def _race_status(race: dict) -> str:
-    now = datetime.now(timezone.utc)
-    return "✅" if race["race_time"] < now else "🔜"
+RU_MONTHS = {
+    1: "янв",  2: "фев",  3: "мар",  4: "апр",   5: "май",  6: "июн",
+    7: "июл",  8: "авг",  9: "сен", 10: "окт",  11: "ноя", 12: "дек",
+}
+
+
+def _format_race_date(dt: datetime) -> str:
+    return f"{dt.day} {RU_MONTHS[dt.month]} {dt.strftime('%H:%M')} UTC"
 
 
 async def show_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    now = datetime.now(timezone.utc)
+    # Find the next upcoming race so we can highlight it
+    upcoming = [r for r in RACES_2026 if r["race_time"] >= now]
+    next_race_id = upcoming[0]["id"] if upcoming else None
+
     lines = ["🏁 <b>Календарь Формулы 1 — 2026</b>\n"]
 
     for race in RACES_2026:
-        status     = _race_status(race)
-        sprint_tag = " 🟣 Sprint" if race["sprint_time"] else ""
-        date_str   = race["race_time"].strftime("%d %b %H:%M UTC")
+        is_past = race["race_time"] < now
+        if race["id"] == next_race_id:
+            status = "▶️"
+        else:
+            status = "✅" if is_past else "🔜"
+        sprint_tag = " 🟣 Спринт" if race["sprint_time"] else ""
+        date_str   = _format_race_date(race["race_time"])
         lines.append(
             f"{status} <b>{race['flag']} {race['name']}</b>{sprint_tag}\n"
             f"    📍 {race['circuit']}\n"
