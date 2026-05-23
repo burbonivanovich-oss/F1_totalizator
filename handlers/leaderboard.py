@@ -68,12 +68,19 @@ async def process_results_and_score(
         )
         breakdown_text = "\n".join(result["breakdown"])
         header = "🔄 <b>Результаты пересчитаны</b>" if existing_score else f"📊 <b>Результаты {'спринта' if is_sprint else 'гонки'}</b>"
+        nav_kb = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("📋 Мои прогнозы", callback_data="menu:my_predictions"),
+                InlineKeyboardButton("🏆 Лидерборд",    callback_data="menu:leaderboard"),
+            ]
+        ])
         try:
             await bot.send_message(
                 pred["telegram_id"],
                 f"{header}\n\n"
                 f"Твои очки: <b>{result['total']}</b>\n\n{breakdown_text}",
                 parse_mode="HTML",
+                reply_markup=nav_kb,
             )
         except Exception as e:
             # Log notification failures instead of silently ignoring

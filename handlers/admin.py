@@ -29,37 +29,9 @@ from telegram.ext import ContextTypes
 from config import ADMIN_IDS
 from handlers.calendar_handler import RACE_BY_ID, DRIVER_BY_ID
 from handlers.leaderboard import process_results_and_score
+from data.race_mappings import RACE_ID_TO_FASTF1_NAME
 
 logger = logging.getLogger(__name__)
-
-# Mapping from race ID to FastF1 GP name
-RACE_ID_TO_FASTF1_NAME = {
-    "AUS": "Australia",
-    "CHN": "China",
-    "JPN": "Japan",
-    "BHR": "Bahrain",
-    "SAU": "Saudi Arabia",
-    "MIA": "Miami",
-    "EMI": "Emilia Romagna",
-    "MON": "Monaco",
-    "ESP": "Spain",
-    "CAN": "Canada",
-    "AUT": "Austria",
-    "GBR": "Great Britain",
-    "HUN": "Hungary",
-    "BEL": "Belgium",
-    "NED": "Netherlands",
-    "ITA": "Italy",
-    "AZE": "Azerbaijan",
-    "SGP": "Singapore",
-    "USA": "United States",
-    "MEX": "Mexico",
-    "BRA": "Brazil",
-    "LVG": "Las Vegas",
-    "QAT": "Qatar",
-    "ABU": "Abu Dhabi",
-}
-
 
 def _check_admin(update: Update) -> bool:
     return update.effective_user.id in ADMIN_IDS
@@ -96,6 +68,11 @@ async def result_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"Для {race_type} нужно {expected} гонщиков, получено {len(drivers)}."
         )
+        return
+
+    if len(set(drivers)) != len(drivers):
+        dupes = [d for d in drivers if drivers.count(d) > 1]
+        await update.message.reply_text(f"Дублирующиеся гонщики: {', '.join(set(dupes))}")
         return
 
     for driver_id in drivers:

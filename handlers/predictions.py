@@ -287,6 +287,7 @@ async def _back_to_menu(query):
 
 async def show_my_predictions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
     tg_user = update.effective_user
 
     user = await db.get_user_by_telegram_id(tg_user.id)
@@ -309,7 +310,7 @@ async def show_my_predictions(update: Update, context: ContextTypes.DEFAULT_TYPE
             kind = "🟣 Спринт" if pred["is_sprint"] else "🏁 Гонка"
             # Use same type (int) for lookup as used in dict creation
             score_rec = scores.get((pred["race_id"], int(pred["is_sprint"])))
-            pts = f"+{score_rec['points']} очк." if score_rec else "ожидание результата"
+            pts = f"{score_rec['points']:+d} очк." if score_rec else "ожидание результата"
 
             positions = pred.get("positions", [])
             podium_str = ", ".join(get_driver_short(d) for d in positions[:3])

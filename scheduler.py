@@ -16,6 +16,7 @@ import logging
 from telegram.ext import Application
 
 from handlers.calendar_handler import RACES_2026
+from data.race_mappings import RACE_ID_TO_FASTF1_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -29,34 +30,6 @@ RETRY_DELAY_MINUTES = 30
 
 # FastF1 season year
 F1_SEASON = 2026
-
-# Mapping from race ID to FastF1 GP name (full names that FastF1 understands)
-RACE_ID_TO_FASTF1_NAME = {
-    "AUS": "Australia",
-    "CHN": "China",
-    "JPN": "Japan",
-    "BHR": "Bahrain",
-    "SAU": "Saudi Arabia",
-    "MIA": "Miami",
-    "EMI": "Emilia Romagna",
-    "MON": "Monaco",
-    "ESP": "Spain",
-    "CAN": "Canada",
-    "AUT": "Austria",
-    "GBR": "Great Britain",
-    "HUN": "Hungary",
-    "BEL": "Belgium",
-    "NED": "Netherlands",
-    "ITA": "Italy",
-    "AZE": "Azerbaijan",
-    "SGP": "Singapore",
-    "USA": "United States",
-    "MEX": "Mexico",
-    "BRA": "Brazil",
-    "LVG": "Las Vegas",
-    "QAT": "Qatar",
-    "ABU": "Abu Dhabi",
-}
 
 
 def init_fastf1_cache():

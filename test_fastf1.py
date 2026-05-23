@@ -1,122 +1,101 @@
 #!/usr/bin/env python3
-"""Test script to verify FastF1 integration and fetch past race results."""
+"""
+Test script to verify FastF1 integration and fetch past race results.
+
+Usage:
+  python test_fastf1.py                 # test first 3 races
+  python test_fastf1.py AUS             # test AUS race
+  python test_fastf1.py CHN sprint      # test CHN sprint
+"""
 
 import asyncio
 import sys
 import os
 
-# Ensure project root is in path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import fastf1
 from data.drivers import DRIVERS
-from handlers.calendar_handler import RACES_2026
+from data.calendar_2026 import RACES_2026
+from data.race_mappings import RACE_ID_TO_FASTF1_NAME
 
-# Mapping from race ID to FastF1 GP name
-RACE_ID_TO_FASTF1_NAME = {
-    "AUS": "Australia",
-    "CHN": "China",
-    "JPN": "Japan",
-    "MIA": "Miami",
-    "CAN": "Canada",
-    "MON": "Monaco",
-    "ESP": "Spain",
-    "AUT": "Austria",
-    "GBR": "Britain",
-    "BEL": "Belgium",
-    "HUN": "Hungary",
-    "NED": "Netherlands",
-    "ITA": "Italy",
-    "MAD": "Madrid",
-    "AZE": "Azerbaijan",
-    "SGP": "Singapore",
-    "USA": "United States",
-    "MEX": "Mexico",
-    "BRA": "Brazil",
-    "LVG": "Las Vegas",
-    "QAT": "Qatar",
-    "ABU": "Abu Dhabi",
-}
+RACE_BY_ID = {r["id"]: r for r in RACES_2026}
 
 
 async def test_fetch_results(race_id: str, is_sprint: bool = False):
-    """Test fetching results from FastF1."""
-
-    # Find race in calendar
-    race = next((r for r in RACES_2026 if r["id"] == race_id), None)
+    race = RACE_BY_ID.get(race_id.upper())
     if not race:
-        print(f"❌ Race {race_id} not found in calendar")
+        print(f"❌ Race {race_id!r} not found in 2026 calendar")
+        print(f"   Available: {', '.join(RACE_BY_ID)}")
         return
 
-    race_name = race["name"]
+    race_name    = race["name"]
     session_type = "Sprint" if is_sprint else "Race"
+    gp_name      = RACE_ID_TO_FASTF1_NAME.get(race_id.upper())
 
-    print(f"\n🏁 Fetching {session_type} results for {race_name}...")
+    if not gp_name:
+        print(f"❌ No FastF1 name mapping for {race_id}")
+        return
+
+    print(f"\n🏁 Fetching {session_type} results for {race_name} (FastF1 name: {gp_name!r})...")
 
     try:
-        # Build driver number to code mapping
         number_to_code = {d["number"]: d["id"] for d in DRIVERS}
+        driver_by_id   = {d["id"]: d for d in DRIVERS}
 
-        # Convert race ID to FastF1 GP name
-        gp_name = RACE_ID_TO_FASTF1_NAME.get(race_id)
-        if not gp_name:
-            print(f"❌ Unknown race ID {race_id}")
-            return
-
-        # Fetch session
-        loop = asyncio.get_event_loop()
+        loop    = asyncio.get_event_loop()
         session = await loop.run_in_executor(
             None,
-            lambda: fastf1.get_session(2026, gp_name, "S" if is_sprint else "R")
+            lambda: fastf1.get_session(2026, gp_name, "S" if is_sprint else "R"),
         )
 
         if not session:
-            print(f"❌ Could not find session for {race_name}")
+            print(f"❌ Session not found")
             return
 
-        print(f"📡 Loading data from F1 API...")
-        await loop.run_in_executor(None, lambda: session.load())
+        print(f"📡 Loading session data (results only)...")
+        await loop.run_in_executor(
+            None,
+            lambda: session.load(laps=False, telemetry=False, weather=False, messages=False),
+        )
 
-        # Get results
         results_df = session.results
-
         if results_df is None or len(results_df) == 0:
-            print(f"❌ No results found")
+            print("❌ No results found. Data may not be available yet.")
             return
 
-        print(f"\n✅ Found {len(results_df)} drivers\n")
-        print(f"{'Pos':<4} {'#':<3} {'Driver Code':<12} {'Name':<25} {'Status'}")
-        print("-" * 75)
+        print(f"\n✅ Found {len(results_df)} entries\n")
+        print(f"{'Pos':<4} {'#':<4} {'Code':<6} {'Name':<26} Status")
+        print("-" * 65)
 
         positions = []
-        for idx, row in results_df.iterrows():
-            driver_number = row.get("DriverNumber") or row.get("Driver")
+        for pos_num, (_, row) in enumerate(results_df.iterrows(), 1):
+            driver_code = None
 
-            if driver_number is None:
-                continue
-
-            try:
-                driver_number = int(driver_number)
-            except (ValueError, TypeError):
-                print(f"{idx+1:<4} {driver_number:<3} {'ERROR':<12} Could not parse driver number")
-                continue
-
-            driver_code = number_to_code.get(driver_number)
+            abbrev = str(row.get("Abbreviation", "") or "").upper().strip()
+            if abbrev and abbrev in driver_by_id:
+                driver_code = abbrev
 
             if not driver_code:
-                print(f"{idx+1:<4} {driver_number:<3} {'UNKNOWN':<12} Status: {row.get('Status', 'Unknown')}")
+                raw_num = row.get("DriverNumber") or row.get("Driver")
+                if raw_num is not None:
+                    try:
+                        driver_code = number_to_code.get(int(raw_num))
+                    except (ValueError, TypeError):
+                        pass
+
+            if not driver_code:
+                print(f"{pos_num:<4} #{row.get('DriverNumber','?'):<3} {'???':<6} {'Unknown driver':<26} {row.get('Status','')}")
                 continue
 
-            # Get driver name
-            driver_data = next((d for d in DRIVERS if d["id"] == driver_code), {})
-            driver_name = driver_data.get("full_name", "Unknown")
-            status = row.get("Status", "Finished")
-
-            print(f"{idx+1:<4} {driver_number:<3} {driver_code:<12} {driver_name:<25} {status}")
+            d      = driver_by_id.get(driver_code, {})
+            name   = d.get("full_name", driver_code)
+            status = str(row.get("Status", "Finished"))
+            print(f"{pos_num:<4} #{d.get('number','?'):<3} {driver_code:<6} {name:<26} {status}")
             positions.append(driver_code)
 
-        print(f"\n📋 Final order ({len(positions)} finished):")
-        print(f"   {', '.join(positions)}")
+        print(f"\n📋 Result order ({len(positions)} drivers):")
+        print("   " + ", ".join(positions))
 
         return positions
 
@@ -127,19 +106,25 @@ async def test_fetch_results(race_id: str, is_sprint: bool = False):
 
 
 async def main():
-    """Run tests for recent races."""
-    print("=" * 75)
-    print("FastF1 Integration Test")
-    print("=" * 75)
+    # Parse CLI args: test_fastf1.py [RACE_ID [race|sprint]]
+    if len(sys.argv) >= 2:
+        race_id   = sys.argv[1].upper()
+        is_sprint = len(sys.argv) >= 3 and sys.argv[2].lower() == "sprint"
+        await test_fetch_results(race_id, is_sprint)
+        return
 
-    # Test past races
-    races_to_test = [
-        ("AUS", False),  # Australian GP (past)
-        ("CHN", True),   # Chinese GP Sprint (if available)
-        ("CHN", False),  # Chinese GP Race
+    # Default: test first few already-finished races
+    print("=" * 65)
+    print("FastF1 Integration Test — F1 2026")
+    print("=" * 65)
+
+    tests = [
+        ("AUS", False),
+        ("CHN", True),
+        ("CHN", False),
+        ("JPN", False),
     ]
-
-    for race_id, is_sprint in races_to_test:
+    for race_id, is_sprint in tests:
         await test_fetch_results(race_id, is_sprint)
 
 
