@@ -1,13 +1,22 @@
 import aiosqlite
 import json
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Optional
 
 DB_PATH = "f1_totalizator.db"
 
 
-async def init_db():
+@asynccontextmanager
+async def _db():
+    """Open a DB connection with foreign-key constraints enforced."""
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        yield db
+
+
+async def init_db():
+    async with _db() as db:
         await db.executescript("""
             CREATE TABLE IF NOT EXISTS users (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,6 +58,13 @@ async def init_db():
                 UNIQUE(user_id, race_id, is_sprint),
                 FOREIGN KEY(user_id) REFERENCES users(id)
             );
+
+            -- Indices for frequently queried columns
+            CREATE INDEX IF NOT EXISTS idx_predictions_user ON predictions(user_id);
+            CREATE INDEX IF NOT EXISTS idx_predictions_race ON predictions(race_id, is_sprint);
+            CREATE INDEX IF NOT EXISTS idx_scores_user     ON scores(user_id);
+            CREATE INDEX IF NOT EXISTS idx_scores_race     ON scores(race_id, is_sprint);
+            CREATE INDEX IF NOT EXISTS idx_results_race    ON results(race_id, is_sprint);
         """)
         await db.commit()
 
@@ -56,7 +72,7 @@ async def init_db():
 # ── Users ────────────────────────────────────────────────────────────────────
 
 async def upsert_user(telegram_id: int, username: Optional[str], full_name: str) -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         now = datetime.now(timezone.utc).isoformat()
         await db.execute("""
             INSERT INTO users (telegram_id, username, full_name, created_at)
@@ -72,7 +88,7 @@ async def upsert_user(telegram_id: int, username: Optional[str], full_name: str)
 
 
 async def get_user_by_telegram_id(telegram_id: int) -> Optional[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM users WHERE telegram_id = ?", (telegram_id,)
@@ -88,7 +104,7 @@ async def save_prediction(
     positions: list[str],
 ) -> None:
     """Save prediction with ordered list of driver IDs (16 for race, 10 for sprint)."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         now = datetime.now(timezone.utc).isoformat()
         positions_json = json.dumps(positions, ensure_ascii=False)
         await db.execute("""
@@ -102,7 +118,7 @@ async def save_prediction(
 
 
 async def get_prediction(user_id: int, race_id: str, is_sprint: bool) -> Optional[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT * FROM predictions
@@ -112,12 +128,15 @@ async def get_prediction(user_id: int, race_id: str, is_sprint: bool) -> Optiona
             if not row:
                 return None
             result = dict(row)
-            result["positions"] = json.loads(result["positions"])
+            try:
+                result["positions"] = json.loads(result["positions"])
+            except json.JSONDecodeError:
+                return None  # Return None instead of crashing on corrupted data
             return result
 
 
 async def get_user_predictions(user_id: int) -> list[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT * FROM predictions WHERE user_id = ?
@@ -127,8 +146,12 @@ async def get_user_predictions(user_id: int) -> list[dict]:
             results = []
             for r in rows:
                 row_dict = dict(r)
-                row_dict["positions"] = json.loads(row_dict["positions"])
-                results.append(row_dict)
+                try:
+                    row_dict["positions"] = json.loads(row_dict["positions"])
+                    results.append(row_dict)
+                except json.JSONDecodeError:
+                    # Skip corrupted records instead of crashing
+                    continue
             return results
 
 
@@ -136,7 +159,7 @@ async def get_user_predictions(user_id: int) -> list[dict]:
 
 async def save_result(race_id: str, is_sprint: bool, positions: list[str]) -> None:
     """Save race result with ordered list of driver IDs (16 for race, 10 for sprint)."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         now = datetime.now(timezone.utc).isoformat()
         positions_json = json.dumps(positions, ensure_ascii=False)
         await db.execute("""
@@ -150,7 +173,7 @@ async def save_result(race_id: str, is_sprint: bool, positions: list[str]) -> No
 
 
 async def get_result(race_id: str, is_sprint: bool) -> Optional[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT * FROM results WHERE race_id = ? AND is_sprint = ?
@@ -159,12 +182,15 @@ async def get_result(race_id: str, is_sprint: bool) -> Optional[dict]:
             if not row:
                 return None
             result = dict(row)
-            result["positions"] = json.loads(result["positions"])
+            try:
+                result["positions"] = json.loads(result["positions"])
+            except json.JSONDecodeError:
+                return None
             return result
 
 
 async def get_all_predictions_for_race(race_id: str, is_sprint: bool) -> list[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT p.*, u.telegram_id, u.full_name
@@ -176,8 +202,12 @@ async def get_all_predictions_for_race(race_id: str, is_sprint: bool) -> list[di
             results = []
             for r in rows:
                 row_dict = dict(r)
-                row_dict["positions"] = json.loads(row_dict["positions"])
-                results.append(row_dict)
+                try:
+                    row_dict["positions"] = json.loads(row_dict["positions"])
+                    results.append(row_dict)
+                except json.JSONDecodeError:
+                    # Skip corrupted records
+                    continue
             return results
 
 
@@ -187,7 +217,7 @@ async def save_score(
     user_id: int, race_id: str, is_sprint: bool,
     points: int, breakdown: list[str],
 ) -> None:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         now = datetime.now(timezone.utc).isoformat()
         await db.execute("""
             INSERT INTO scores (user_id, race_id, is_sprint, points, breakdown, calculated_at)
@@ -201,18 +231,25 @@ async def save_score(
 
 
 async def get_score(user_id: int, race_id: str, is_sprint: bool) -> Optional[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT * FROM scores WHERE user_id = ? AND race_id = ? AND is_sprint = ?
         """, (user_id, race_id, int(is_sprint))) as cur:
             row = await cur.fetchone()
-            return dict(row) if row else None
+            if not row:
+                return None
+            result = dict(row)
+            try:
+                result["breakdown"] = json.loads(result["breakdown"])
+            except (json.JSONDecodeError, KeyError):
+                result["breakdown"] = []
+            return result
 
 
 async def get_leaderboard() -> list[dict]:
     """Returns list of {full_name, telegram_id, total_points, races_count}."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT u.full_name, u.telegram_id,
@@ -228,11 +265,107 @@ async def get_leaderboard() -> list[dict]:
 
 
 async def get_user_scores(user_id: int) -> list[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT * FROM scores WHERE user_id = ?
             ORDER BY calculated_at DESC
         """, (user_id,)) as cur:
+            rows = await cur.fetchall()
+            results = []
+            for r in rows:
+                row_dict = dict(r)
+                try:
+                    row_dict["breakdown"] = json.loads(row_dict["breakdown"])
+                except (json.JSONDecodeError, KeyError):
+                    row_dict["breakdown"] = []
+                results.append(row_dict)
+            return results
+
+
+async def get_user_full_stats(user_id: int) -> dict:
+    """Comprehensive per-user statistics: points, accuracy, rank."""
+    async with _db() as db:
+        db.row_factory = aiosqlite.Row
+
+        async with db.execute("""
+            SELECT
+                COUNT(*)          AS races_scored,
+                COALESCE(SUM(points), 0)   AS total_points,
+                COALESCE(MAX(points), 0)   AS best_race,
+                COALESCE(AVG(points), 0.0) AS avg_points
+            FROM scores WHERE user_id = ?
+        """, (user_id,)) as cur:
+            score_row = dict(await cur.fetchone() or {})
+
+        async with db.execute(
+            "SELECT COUNT(*) AS predictions_made FROM predictions WHERE user_id = ?",
+            (user_id,),
+        ) as cur:
+            pred_row = dict(await cur.fetchone() or {})
+
+        # Cross predictions with actual results to compute accuracy
+        async with db.execute("""
+            SELECT p.positions AS pred_pos, r.positions AS result_pos
+            FROM predictions p
+            JOIN results r ON r.race_id = p.race_id AND r.is_sprint = p.is_sprint
+            WHERE p.user_id = ?
+        """, (user_id,)) as cur:
+            matched = [dict(r) for r in await cur.fetchall()]
+
+        exact_hits = top_hits = total_slots = p1_correct = 0
+        p1_total = len(matched)
+
+        for row in matched:
+            try:
+                pred = json.loads(row["pred_pos"])
+                result = json.loads(row["result_pos"])
+                result_set = set(result)
+
+                for i, driver in enumerate(pred):
+                    total_slots += 1
+                    if i < len(result) and result[i] == driver:
+                        exact_hits += 1
+                    elif driver in result_set:
+                        top_hits += 1
+
+                if pred and result and pred[0] == result[0]:
+                    p1_correct += 1
+            except (json.JSONDecodeError, IndexError, KeyError):
+                pass
+
+        # Global rank: count users with strictly more points
+        async with db.execute("""
+            SELECT COUNT(*) + 1 AS rank FROM (
+                SELECT user_id, SUM(points) AS pts
+                FROM scores GROUP BY user_id
+            ) WHERE pts > COALESCE(
+                (SELECT SUM(points) FROM scores WHERE user_id = ?), 0
+            )
+        """, (user_id,)) as cur:
+            rank_row = await cur.fetchone()
+
+        return {
+            "races_scored":      score_row.get("races_scored", 0),
+            "total_points":      score_row.get("total_points", 0),
+            "best_race":         score_row.get("best_race", 0),
+            "avg_points":        float(score_row.get("avg_points", 0)),
+            "predictions_made":  pred_row.get("predictions_made", 0),
+            "exact_hits":        exact_hits,
+            "top_hits":          top_hits,
+            "total_slots":       total_slots,
+            "p1_correct":        p1_correct,
+            "p1_total":          p1_total,
+            "rank":              rank_row[0] if rank_row else 1,
+        }
+
+
+async def get_all_users() -> list[dict]:
+    """Return all registered users ordered by registration date."""
+    async with _db() as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM users ORDER BY created_at ASC"
+        ) as cur:
             rows = await cur.fetchall()
             return [dict(r) for r in rows]

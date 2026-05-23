@@ -1,0 +1,12 @@
+{
+  "name": "f1-totalizator-bot",
+  "version": "1.0.0",
+  "description": "F1 2026 Betting Bot for Telegram",
+  "main": "index.js",
+  "scripts": {
+    "start": "python3 bot.py"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

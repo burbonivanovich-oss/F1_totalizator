@@ -7,8 +7,7 @@ from fastapi import APIRouter, Query, HTTPException
 
 import database as db
 from config import PREDICTION_LOCK_MINUTES
-from data.drivers import DRIVERS
-from data.calendar_2026 import RACES_2026, RACE_BY_ID
+from handlers.calendar_handler import DRIVERS, RACES_2026, RACE_BY_ID
 
 router = APIRouter(prefix="/api")
 

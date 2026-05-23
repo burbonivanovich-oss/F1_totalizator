@@ -7,6 +7,11 @@ Flow:
   3. Bot sends a WebApp button → user opens drag-and-drop interface
   4. User submits → bot receives web_app_data → saves to DB
 """
+import os
+import sys
+# Ensure project root (parent of handlers/) is always in sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import json
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -21,8 +26,7 @@ from telegram.ext import (
 
 import database as db
 from config import PREDICTION_LOCK_MINUTES, WEBAPP_URL
-from data.calendar_2026 import RACES_2026, RACE_BY_ID
-from data.drivers import DRIVER_BY_ID, get_driver_short
+from handlers.calendar_handler import RACES_2026, RACE_BY_ID, DRIVER_BY_ID, get_driver_short
 
 # Conversation states
 (
@@ -46,11 +50,6 @@ def _is_locked(race: dict, is_sprint: bool) -> bool:
 
 def _open_races() -> list[dict]:
     return [r for r in RACES_2026 if not _is_locked(r, is_sprint=False)]
-
-
-def _webapp_url(race_id: str, is_sprint: bool, tg_id: int) -> str:
-    sprint_param = "1" if is_sprint else "0"
-    return f"{WEBAPP_URL}?race_id={race_id}&is_sprint={sprint_param}&tg_id={tg_id}"
 
 
 # ── Entry points ──────────────────────────────────────────────────────────────
@@ -96,7 +95,12 @@ async def pick_race(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _back_to_menu(query)
         return ConversationHandler.END
 
-    race_id = query.data.split(":")[1]
+    parts = query.data.split(":")
+    if len(parts) < 2:
+        await query.edit_message_text("Ошибка: неверный формат гонки")
+        return ConversationHandler.END
+
+    race_id = parts[1]
     race = RACE_BY_ID.get(race_id)
     if not race:
         await query.edit_message_text("Гонка не найдена.")
@@ -132,7 +136,10 @@ async def pick_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     is_sprint = query.data == "type:sprint"
-    race_id   = context.user_data["pred_race_id"]
+    race_id   = context.user_data.get("pred_race_id")
+    if not race_id:
+        await query.edit_message_text("Ошибка: сессия истекла. Начни заново /start")
+        return ConversationHandler.END
     return await _send_webapp_button(query, context, race_id, is_sprint)
 
 
@@ -140,7 +147,11 @@ async def _send_webapp_button(query, context: ContextTypes.DEFAULT_TYPE, race_id
     """Send a message with the WebApp launch button."""
     from handlers.start import webapp_reply_keyboard
 
-    race  = RACE_BY_ID[race_id]
+    race = RACE_BY_ID.get(race_id)
+    if not race:
+        await query.message.reply_text(f"❌ Гонка не найдена: {race_id}")
+        return ConversationHandler.END
+
     kind  = "спринт" if is_sprint else "гонку"
     top_n = 10 if is_sprint else 16
     tg_id = query.from_user.id
@@ -153,12 +164,12 @@ async def _send_webapp_button(query, context: ContextTypes.DEFAULT_TYPE, race_id
         )
         return ConversationHandler.END
 
-    # Load existing prediction to pre-fill the WebApp
+    # Load existing prediction to pre-fill the WebApp (user might not exist yet)
     existing_positions = []
     user = await db.get_user_by_telegram_id(tg_id)
-    if user:
+    if user is not None:
         pred = await db.get_prediction(user["id"], race_id, is_sprint)
-        if pred:
+        if pred is not None:
             existing_positions = pred["positions"]
 
     await query.message.reply_text(
@@ -247,6 +258,24 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+async def _exit_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Exit conversation state and properly route menu callbacks.
+
+    Handles the case when user is stuck in a conversation state and presses
+    a main-menu button — without this, ConversationHandler would silently
+    swallow the callback and nothing would happen.
+    """
+    context.user_data.clear()
+    query = update.callback_query
+    if query.data == "main_menu":
+        from handlers.start import start
+        await start(update, context)
+    else:
+        from handlers.start import menu_callback
+        await menu_callback(update, context)
+    return ConversationHandler.END
+
+
 async def _back_to_menu(query):
     from handlers.start import MAIN_MENU_TEXT, main_menu_keyboard
     await query.edit_message_text(
@@ -258,6 +287,7 @@ async def _back_to_menu(query):
 
 async def show_my_predictions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
     tg_user = update.effective_user
 
     user = await db.get_user_by_telegram_id(tg_user.id)
@@ -266,7 +296,8 @@ async def show_my_predictions(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     predictions = await db.get_user_predictions(user["id"])
-    scores = {(s["race_id"], s["is_sprint"]): s for s in await db.get_user_scores(user["id"])}
+    # Convert is_sprint to int for consistent dict keys (database stores as 0/1, not bool)
+    scores = {(s["race_id"], int(s["is_sprint"])): s for s in await db.get_user_scores(user["id"])}
 
     if not predictions:
         text = "📋 У тебя пока нет прогнозов."
@@ -277,8 +308,9 @@ async def show_my_predictions(update: Update, context: ContextTypes.DEFAULT_TYPE
             flag = race.get("flag", "")
             name = race.get("name", pred["race_id"])
             kind = "🟣 Спринт" if pred["is_sprint"] else "🏁 Гонка"
-            score_rec = scores.get((pred["race_id"], bool(pred["is_sprint"])))
-            pts = f"+{score_rec['points']} очк." if score_rec else "ожидание результата"
+            # Use same type (int) for lookup as used in dict creation
+            score_rec = scores.get((pred["race_id"], int(pred["is_sprint"])))
+            pts = f"{score_rec['points']:+d} очк." if score_rec else "ожидание результата"
 
             positions = pred.get("positions", [])
             podium_str = ", ".join(get_driver_short(d) for d in positions[:3])
@@ -316,7 +348,10 @@ def build_predict_conversation() -> ConversationHandler:
         },
         fallbacks=[
             CommandHandler("cancel", cancel),
+            CommandHandler("start", cancel),   # /start always exits conversation
             CallbackQueryHandler(cancel, pattern=f"^{BACK}$"),
+            # Allow escaping conversation by pressing any main-menu button
+            CallbackQueryHandler(_exit_to_menu, pattern=r"^(menu:|main_menu$)"),
         ],
         per_message=False,
     )

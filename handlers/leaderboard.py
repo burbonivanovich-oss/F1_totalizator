@@ -28,6 +28,7 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ])
 
     if update.callback_query:
+        await update.callback_query.answer()
         await update.callback_query.edit_message_text(
             text, parse_mode="HTML", reply_markup=kb
         )
@@ -65,17 +66,27 @@ async def process_results_and_score(
             pred["user_id"], race_id, is_sprint,
             result["total"], result["breakdown"],
         )
-        if not existing_score:
-            breakdown_text = "\n".join(result["breakdown"])
-            try:
-                await bot.send_message(
-                    pred["telegram_id"],
-                    f"📊 <b>Результаты {'спринта' if is_sprint else 'гонки'}</b>\n\n"
-                    f"Твои очки: <b>{result['total']}</b>\n\n{breakdown_text}",
-                    parse_mode="HTML",
-                )
-            except Exception:
-                pass
+        breakdown_text = "\n".join(result["breakdown"])
+        header = "🔄 <b>Результаты пересчитаны</b>" if existing_score else f"📊 <b>Результаты {'спринта' if is_sprint else 'гонки'}</b>"
+        nav_kb = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("📋 Мои прогнозы", callback_data="menu:my_predictions"),
+                InlineKeyboardButton("🏆 Лидерборд",    callback_data="menu:leaderboard"),
+            ]
+        ])
+        try:
+            await bot.send_message(
+                pred["telegram_id"],
+                f"{header}\n\n"
+                f"Твои очки: <b>{result['total']}</b>\n\n{breakdown_text}",
+                parse_mode="HTML",
+                reply_markup=nav_kb,
+            )
+        except Exception as e:
+            # Log notification failures instead of silently ignoring
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception(f"Failed to send score notification to user {pred['telegram_id']}")
 
         summary_lines.append(f"{pred['full_name']}: {result['total']} очк.")
 
