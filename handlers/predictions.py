@@ -164,12 +164,12 @@ async def _send_webapp_button(query, context: ContextTypes.DEFAULT_TYPE, race_id
         )
         return ConversationHandler.END
 
-    # Load existing prediction to pre-fill the WebApp
+    # Load existing prediction to pre-fill the WebApp (user might not exist yet)
     existing_positions = []
     user = await db.get_user_by_telegram_id(tg_id)
-    if user:
+    if user is not None:
         pred = await db.get_prediction(user["id"], race_id, is_sprint)
-        if pred:
+        if pred is not None:
             existing_positions = pred["positions"]
 
     await query.message.reply_text(

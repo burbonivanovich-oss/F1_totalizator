@@ -34,30 +34,32 @@ const DRIVERS = [
   {id:"BEA", name:"Bearman",     full_name:"Oliver Bearman",         team:"Haas"},
 ];
 
-// 22 rounds (BHR + SAU cancelled); sprints: CHN, MIA, CAN, GBR, NED, SGP; AZE + LVG are Saturday races
+// 24 rounds; sprints: CHN, MIA, AUT, USA, BRA, QAT
 const RACES = [
-  {id:"AUS", name:"Australian Grand Prix",    flag:"🇦🇺", race_time:"2026-03-08T04:00:00+00:00", sprint_time:null},
-  {id:"CHN", name:"Chinese Grand Prix",       flag:"🇨🇳", race_time:"2026-03-15T07:00:00+00:00", sprint_time:"2026-03-14T03:00:00+00:00"},
-  {id:"JPN", name:"Japanese Grand Prix",      flag:"🇯🇵", race_time:"2026-03-29T05:00:00+00:00", sprint_time:null},
-  {id:"MIA", name:"Miami Grand Prix",         flag:"🇺🇸", race_time:"2026-05-03T20:00:00+00:00", sprint_time:"2026-05-02T16:00:00+00:00"},
-  {id:"CAN", name:"Canadian Grand Prix",      flag:"🇨🇦", race_time:"2026-05-24T20:00:00+00:00", sprint_time:"2026-05-23T16:00:00+00:00"},
-  {id:"MON", name:"Monaco Grand Prix",        flag:"🇲🇨", race_time:"2026-06-07T13:00:00+00:00", sprint_time:null},
-  {id:"ESP", name:"Catalunya Grand Prix",     flag:"🇪🇸", race_time:"2026-06-14T13:00:00+00:00", sprint_time:null},
-  {id:"AUT", name:"Austrian Grand Prix",      flag:"🇦🇹", race_time:"2026-06-28T13:00:00+00:00", sprint_time:null},
-  {id:"GBR", name:"British Grand Prix",       flag:"🇬🇧", race_time:"2026-07-05T14:00:00+00:00", sprint_time:"2026-07-04T11:00:00+00:00"},
-  {id:"BEL", name:"Belgian Grand Prix",       flag:"🇧🇪", race_time:"2026-07-19T13:00:00+00:00", sprint_time:null},
-  {id:"HUN", name:"Hungarian Grand Prix",     flag:"🇭🇺", race_time:"2026-07-26T13:00:00+00:00", sprint_time:null},
-  {id:"NED", name:"Dutch Grand Prix",         flag:"🇳🇱", race_time:"2026-08-23T13:00:00+00:00", sprint_time:"2026-08-22T10:00:00+00:00"},
-  {id:"ITA", name:"Italian Grand Prix",       flag:"🇮🇹", race_time:"2026-09-06T13:00:00+00:00", sprint_time:null},
-  {id:"MAD", name:"Madrid Grand Prix",        flag:"🇪🇸", race_time:"2026-09-13T13:00:00+00:00", sprint_time:null},
-  {id:"AZE", name:"Azerbaijan Grand Prix",    flag:"🇦🇿", race_time:"2026-09-26T11:00:00+00:00", sprint_time:null},
-  {id:"SGP", name:"Singapore Grand Prix",     flag:"🇸🇬", race_time:"2026-10-11T12:00:00+00:00", sprint_time:"2026-10-10T09:00:00+00:00"},
-  {id:"USA", name:"United States Grand Prix", flag:"🇺🇸", race_time:"2026-10-25T20:00:00+00:00", sprint_time:null},
-  {id:"MEX", name:"Mexico City Grand Prix",   flag:"🇲🇽", race_time:"2026-11-01T20:00:00+00:00", sprint_time:null},
-  {id:"BRA", name:"São Paulo Grand Prix",     flag:"🇧🇷", race_time:"2026-11-08T17:00:00+00:00", sprint_time:null},
-  {id:"LVG", name:"Las Vegas Grand Prix",     flag:"🇺🇸", race_time:"2026-11-22T04:00:00+00:00", sprint_time:null},
-  {id:"QAT", name:"Qatar Grand Prix",         flag:"🇶🇦", race_time:"2026-11-29T16:00:00+00:00", sprint_time:null},
-  {id:"ABU", name:"Abu Dhabi Grand Prix",     flag:"🇦🇪", race_time:"2026-12-06T13:00:00+00:00", sprint_time:null},
+  {id:"AUS", name:"Australian Grand Prix",       flag:"🇦🇺", race_time:"2026-03-15T05:00:00+00:00", sprint_time:null},
+  {id:"CHN", name:"Chinese Grand Prix",          flag:"🇨🇳", race_time:"2026-03-22T07:00:00+00:00", sprint_time:"2026-03-21T07:30:00+00:00"},
+  {id:"JPN", name:"Japanese Grand Prix",         flag:"🇯🇵", race_time:"2026-04-05T05:00:00+00:00", sprint_time:null},
+  {id:"BHR", name:"Bahrain Grand Prix",          flag:"🇧🇭", race_time:"2026-04-19T15:00:00+00:00", sprint_time:null},
+  {id:"SAU", name:"Saudi Arabian Grand Prix",    flag:"🇸🇦", race_time:"2026-04-26T17:00:00+00:00", sprint_time:null},
+  {id:"MIA", name:"Miami Grand Prix",            flag:"🇺🇸", race_time:"2026-05-10T19:00:00+00:00", sprint_time:"2026-05-09T19:00:00+00:00"},
+  {id:"EMI", name:"Emilia Romagna Grand Prix",   flag:"🇮🇹", race_time:"2026-05-24T13:00:00+00:00", sprint_time:null},
+  {id:"MON", name:"Monaco Grand Prix",           flag:"🇲🇨", race_time:"2026-06-07T13:00:00+00:00", sprint_time:null},
+  {id:"ESP", name:"Spanish Grand Prix",          flag:"🇪🇸", race_time:"2026-06-21T13:00:00+00:00", sprint_time:null},
+  {id:"CAN", name:"Canadian Grand Prix",         flag:"🇨🇦", race_time:"2026-07-05T18:00:00+00:00", sprint_time:null},
+  {id:"AUT", name:"Austrian Grand Prix",         flag:"🇦🇹", race_time:"2026-07-12T13:00:00+00:00", sprint_time:"2026-07-11T11:00:00+00:00"},
+  {id:"GBR", name:"British Grand Prix",          flag:"🇬🇧", race_time:"2026-07-26T14:00:00+00:00", sprint_time:null},
+  {id:"HUN", name:"Hungarian Grand Prix",        flag:"🇭🇺", race_time:"2026-08-02T13:00:00+00:00", sprint_time:null},
+  {id:"BEL", name:"Belgian Grand Prix",          flag:"🇧🇪", race_time:"2026-08-30T13:00:00+00:00", sprint_time:null},
+  {id:"NED", name:"Dutch Grand Prix",            flag:"🇳🇱", race_time:"2026-09-06T13:00:00+00:00", sprint_time:null},
+  {id:"ITA", name:"Italian Grand Prix",          flag:"🇮🇹", race_time:"2026-09-13T13:00:00+00:00", sprint_time:null},
+  {id:"AZE", name:"Azerbaijan Grand Prix",       flag:"🇦🇿", race_time:"2026-09-27T11:00:00+00:00", sprint_time:null},
+  {id:"SGP", name:"Singapore Grand Prix",        flag:"🇸🇬", race_time:"2026-10-04T12:00:00+00:00", sprint_time:null},
+  {id:"USA", name:"United States Grand Prix",    flag:"🇺🇸", race_time:"2026-10-18T19:00:00+00:00", sprint_time:"2026-10-17T19:00:00+00:00"},
+  {id:"MEX", name:"Mexico City Grand Prix",      flag:"🇲🇽", race_time:"2026-11-01T20:00:00+00:00", sprint_time:null},
+  {id:"BRA", name:"São Paulo Grand Prix",        flag:"🇧🇷", race_time:"2026-11-08T17:00:00+00:00", sprint_time:"2026-11-07T17:00:00+00:00"},
+  {id:"LVG", name:"Las Vegas Grand Prix",        flag:"🇺🇸", race_time:"2026-11-22T06:00:00+00:00", sprint_time:null},
+  {id:"QAT", name:"Qatar Grand Prix",            flag:"🇶🇦", race_time:"2026-11-29T15:00:00+00:00", sprint_time:"2026-11-28T14:00:00+00:00"},
+  {id:"ABU", name:"Abu Dhabi Grand Prix",        flag:"🇦🇪", race_time:"2026-12-06T13:00:00+00:00", sprint_time:null},
 ];
 
 const RACE_BY_ID = Object.fromEntries(RACES.map(r => [r.id, r]));
@@ -192,7 +194,7 @@ function renderList() {
     (inTop ? $list : $listTail).appendChild(li);
   });
 
-  if (orderedIds.length > TOP_N) $divider.classList.remove("hidden");
+  $divider.classList.toggle("hidden", orderedIds.length <= TOP_N);
 }
 
 /* ── SortableJS ──────────────────────────────────────────────────────────── */
@@ -231,24 +233,25 @@ function updateTopNClasses() {
     item.classList.toggle("in-top", inTop);
     item.classList.toggle("out-top", !inTop);
   });
-  if (orderedIds.length > TOP_N) $divider.classList.remove("hidden");
+  $divider.classList.toggle("hidden", orderedIds.length <= TOP_N);
 }
 
 /* ── Deadline timer ──────────────────────────────────────────────────────── */
 function startDeadlineTimer(deadline) {
+  let timerId = null;
   function update() {
     const diff = deadline - Date.now();
     if (diff <= 0) {
       $deadlineBlock.textContent = "⛔ Приём прогнозов закрыт";
       document.getElementById("confirm-btn").disabled = true;
-      return;
+      return; // stop scheduling
     }
     const h = Math.floor(diff / 3_600_000);
     const m = Math.floor((diff % 3_600_000) / 60_000);
     const s = Math.floor((diff % 60_000) / 1_000);
     $deadlineBlock.textContent =
       `⏱ Закрытие через ${h > 0 ? h + "ч " : ""}${m}м ${s}с`;
-    setTimeout(update, 1_000);
+    timerId = setTimeout(update, 1_000);
   }
   update();
 }

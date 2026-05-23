@@ -6,6 +6,7 @@ import database as db
 
 async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    await query.answer()
     tg_user = update.effective_user
 
     user = await db.get_user_by_telegram_id(tg_user.id)

@@ -1,13 +1,22 @@
 import aiosqlite
 import json
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Optional
 
 DB_PATH = "f1_totalizator.db"
 
 
-async def init_db():
+@asynccontextmanager
+async def _db():
+    """Open a DB connection with foreign-key constraints enforced."""
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        yield db
+
+
+async def init_db():
+    async with _db() as db:
         await db.executescript("""
             CREATE TABLE IF NOT EXISTS users (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,6 +58,13 @@ async def init_db():
                 UNIQUE(user_id, race_id, is_sprint),
                 FOREIGN KEY(user_id) REFERENCES users(id)
             );
+
+            -- Indices for frequently queried columns
+            CREATE INDEX IF NOT EXISTS idx_predictions_user ON predictions(user_id);
+            CREATE INDEX IF NOT EXISTS idx_predictions_race ON predictions(race_id, is_sprint);
+            CREATE INDEX IF NOT EXISTS idx_scores_user     ON scores(user_id);
+            CREATE INDEX IF NOT EXISTS idx_scores_race     ON scores(race_id, is_sprint);
+            CREATE INDEX IF NOT EXISTS idx_results_race    ON results(race_id, is_sprint);
         """)
         await db.commit()
 
@@ -56,7 +72,7 @@ async def init_db():
 # ── Users ────────────────────────────────────────────────────────────────────
 
 async def upsert_user(telegram_id: int, username: Optional[str], full_name: str) -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         now = datetime.now(timezone.utc).isoformat()
         await db.execute("""
             INSERT INTO users (telegram_id, username, full_name, created_at)
@@ -72,7 +88,7 @@ async def upsert_user(telegram_id: int, username: Optional[str], full_name: str)
 
 
 async def get_user_by_telegram_id(telegram_id: int) -> Optional[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM users WHERE telegram_id = ?", (telegram_id,)
@@ -88,7 +104,7 @@ async def save_prediction(
     positions: list[str],
 ) -> None:
     """Save prediction with ordered list of driver IDs (16 for race, 10 for sprint)."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         now = datetime.now(timezone.utc).isoformat()
         positions_json = json.dumps(positions, ensure_ascii=False)
         await db.execute("""
@@ -102,7 +118,7 @@ async def save_prediction(
 
 
 async def get_prediction(user_id: int, race_id: str, is_sprint: bool) -> Optional[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT * FROM predictions
@@ -120,7 +136,7 @@ async def get_prediction(user_id: int, race_id: str, is_sprint: bool) -> Optiona
 
 
 async def get_user_predictions(user_id: int) -> list[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT * FROM predictions WHERE user_id = ?
@@ -143,7 +159,7 @@ async def get_user_predictions(user_id: int) -> list[dict]:
 
 async def save_result(race_id: str, is_sprint: bool, positions: list[str]) -> None:
     """Save race result with ordered list of driver IDs (16 for race, 10 for sprint)."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         now = datetime.now(timezone.utc).isoformat()
         positions_json = json.dumps(positions, ensure_ascii=False)
         await db.execute("""
@@ -157,7 +173,7 @@ async def save_result(race_id: str, is_sprint: bool, positions: list[str]) -> No
 
 
 async def get_result(race_id: str, is_sprint: bool) -> Optional[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT * FROM results WHERE race_id = ? AND is_sprint = ?
@@ -174,7 +190,7 @@ async def get_result(race_id: str, is_sprint: bool) -> Optional[dict]:
 
 
 async def get_all_predictions_for_race(race_id: str, is_sprint: bool) -> list[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT p.*, u.telegram_id, u.full_name
@@ -201,7 +217,7 @@ async def save_score(
     user_id: int, race_id: str, is_sprint: bool,
     points: int, breakdown: list[str],
 ) -> None:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         now = datetime.now(timezone.utc).isoformat()
         await db.execute("""
             INSERT INTO scores (user_id, race_id, is_sprint, points, breakdown, calculated_at)
@@ -215,18 +231,25 @@ async def save_score(
 
 
 async def get_score(user_id: int, race_id: str, is_sprint: bool) -> Optional[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT * FROM scores WHERE user_id = ? AND race_id = ? AND is_sprint = ?
         """, (user_id, race_id, int(is_sprint))) as cur:
             row = await cur.fetchone()
-            return dict(row) if row else None
+            if not row:
+                return None
+            result = dict(row)
+            try:
+                result["breakdown"] = json.loads(result["breakdown"])
+            except (json.JSONDecodeError, KeyError):
+                result["breakdown"] = []
+            return result
 
 
 async def get_leaderboard() -> list[dict]:
     """Returns list of {full_name, telegram_id, total_points, races_count}."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT u.full_name, u.telegram_id,
@@ -242,19 +265,27 @@ async def get_leaderboard() -> list[dict]:
 
 
 async def get_user_scores(user_id: int) -> list[dict]:
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT * FROM scores WHERE user_id = ?
             ORDER BY calculated_at DESC
         """, (user_id,)) as cur:
             rows = await cur.fetchall()
-            return [dict(r) for r in rows]
+            results = []
+            for r in rows:
+                row_dict = dict(r)
+                try:
+                    row_dict["breakdown"] = json.loads(row_dict["breakdown"])
+                except (json.JSONDecodeError, KeyError):
+                    row_dict["breakdown"] = []
+                results.append(row_dict)
+            return results
 
 
 async def get_user_full_stats(user_id: int) -> dict:
     """Comprehensive per-user statistics: points, accuracy, rank."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
 
         async with db.execute("""
@@ -331,7 +362,7 @@ async def get_user_full_stats(user_id: int) -> dict:
 
 async def get_all_users() -> list[dict]:
     """Return all registered users ordered by registration date."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with _db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM users ORDER BY created_at ASC"

@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
@@ -21,6 +22,14 @@ from webapp.api.routes import router as api_router
 STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(title="F1 Totalizator WebApp", docs_url=None, redoc_url=None)
+
+# Allow cross-origin requests (GitHub Pages → FastAPI on a different domain)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 # API routes
 app.include_router(api_router)

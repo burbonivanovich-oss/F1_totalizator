@@ -28,6 +28,7 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ])
 
     if update.callback_query:
+        await update.callback_query.answer()
         await update.callback_query.edit_message_text(
             text, parse_mode="HTML", reply_markup=kb
         )

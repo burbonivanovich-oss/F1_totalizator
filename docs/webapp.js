@@ -34,47 +34,64 @@ const DRIVERS = [
   {id:"BEA", name:"Bearman",     full_name:"Oliver Bearman",         team:"Haas"},
 ];
 
-// 22 rounds (BHR + SAU cancelled); sprints: CHN, MIA, CAN, GBR, NED, SGP; AZE + LVG are Saturday races
+// 24 rounds; sprints: CHN, MIA, AUT, USA, BRA, QAT
 const RACES = [
-  {id:"AUS", name:"Australian Grand Prix",    flag:"🇦🇺", race_time:"2026-03-08T04:00:00+00:00", sprint_time:null},
-  {id:"CHN", name:"Chinese Grand Prix",       flag:"🇨🇳", race_time:"2026-03-15T07:00:00+00:00", sprint_time:"2026-03-14T03:00:00+00:00"},
-  {id:"JPN", name:"Japanese Grand Prix",      flag:"🇯🇵", race_time:"2026-03-29T05:00:00+00:00", sprint_time:null},
-  {id:"MIA", name:"Miami Grand Prix",         flag:"🇺🇸", race_time:"2026-05-03T20:00:00+00:00", sprint_time:"2026-05-02T16:00:00+00:00"},
-  {id:"CAN", name:"Canadian Grand Prix",      flag:"🇨🇦", race_time:"2026-05-24T20:00:00+00:00", sprint_time:"2026-05-23T16:00:00+00:00"},
-  {id:"MON", name:"Monaco Grand Prix",        flag:"🇲🇨", race_time:"2026-06-07T13:00:00+00:00", sprint_time:null},
-  {id:"ESP", name:"Catalunya Grand Prix",     flag:"🇪🇸", race_time:"2026-06-14T13:00:00+00:00", sprint_time:null},
-  {id:"AUT", name:"Austrian Grand Prix",      flag:"🇦🇹", race_time:"2026-06-28T13:00:00+00:00", sprint_time:null},
-  {id:"GBR", name:"British Grand Prix",       flag:"🇬🇧", race_time:"2026-07-05T14:00:00+00:00", sprint_time:"2026-07-04T11:00:00+00:00"},
-  {id:"BEL", name:"Belgian Grand Prix",       flag:"🇧🇪", race_time:"2026-07-19T13:00:00+00:00", sprint_time:null},
-  {id:"HUN", name:"Hungarian Grand Prix",     flag:"🇭🇺", race_time:"2026-07-26T13:00:00+00:00", sprint_time:null},
-  {id:"NED", name:"Dutch Grand Prix",         flag:"🇳🇱", race_time:"2026-08-23T13:00:00+00:00", sprint_time:"2026-08-22T10:00:00+00:00"},
-  {id:"ITA", name:"Italian Grand Prix",       flag:"🇮🇹", race_time:"2026-09-06T13:00:00+00:00", sprint_time:null},
-  {id:"MAD", name:"Madrid Grand Prix",        flag:"🇪🇸", race_time:"2026-09-13T13:00:00+00:00", sprint_time:null},
-  {id:"AZE", name:"Azerbaijan Grand Prix",    flag:"🇦🇿", race_time:"2026-09-26T11:00:00+00:00", sprint_time:null},
-  {id:"SGP", name:"Singapore Grand Prix",     flag:"🇸🇬", race_time:"2026-10-11T12:00:00+00:00", sprint_time:"2026-10-10T09:00:00+00:00"},
-  {id:"USA", name:"United States Grand Prix", flag:"🇺🇸", race_time:"2026-10-25T20:00:00+00:00", sprint_time:null},
-  {id:"MEX", name:"Mexico City Grand Prix",   flag:"🇲🇽", race_time:"2026-11-01T20:00:00+00:00", sprint_time:null},
-  {id:"BRA", name:"São Paulo Grand Prix",     flag:"🇧🇷", race_time:"2026-11-08T17:00:00+00:00", sprint_time:null},
-  {id:"LVG", name:"Las Vegas Grand Prix",     flag:"🇺🇸", race_time:"2026-11-22T04:00:00+00:00", sprint_time:null},
-  {id:"QAT", name:"Qatar Grand Prix",         flag:"🇶🇦", race_time:"2026-11-29T16:00:00+00:00", sprint_time:null},
-  {id:"ABU", name:"Abu Dhabi Grand Prix",     flag:"🇦🇪", race_time:"2026-12-06T13:00:00+00:00", sprint_time:null},
+  {id:"AUS", name:"Australian Grand Prix",       flag:"🇦🇺", race_time:"2026-03-15T05:00:00+00:00", sprint_time:null},
+  {id:"CHN", name:"Chinese Grand Prix",          flag:"🇨🇳", race_time:"2026-03-22T07:00:00+00:00", sprint_time:"2026-03-21T07:30:00+00:00"},
+  {id:"JPN", name:"Japanese Grand Prix",         flag:"🇯🇵", race_time:"2026-04-05T05:00:00+00:00", sprint_time:null},
+  {id:"BHR", name:"Bahrain Grand Prix",          flag:"🇧🇭", race_time:"2026-04-19T15:00:00+00:00", sprint_time:null},
+  {id:"SAU", name:"Saudi Arabian Grand Prix",    flag:"🇸🇦", race_time:"2026-04-26T17:00:00+00:00", sprint_time:null},
+  {id:"MIA", name:"Miami Grand Prix",            flag:"🇺🇸", race_time:"2026-05-10T19:00:00+00:00", sprint_time:"2026-05-09T19:00:00+00:00"},
+  {id:"EMI", name:"Emilia Romagna Grand Prix",   flag:"🇮🇹", race_time:"2026-05-24T13:00:00+00:00", sprint_time:null},
+  {id:"MON", name:"Monaco Grand Prix",           flag:"🇲🇨", race_time:"2026-06-07T13:00:00+00:00", sprint_time:null},
+  {id:"ESP", name:"Spanish Grand Prix",          flag:"🇪🇸", race_time:"2026-06-21T13:00:00+00:00", sprint_time:null},
+  {id:"CAN", name:"Canadian Grand Prix",         flag:"🇨🇦", race_time:"2026-07-05T18:00:00+00:00", sprint_time:null},
+  {id:"AUT", name:"Austrian Grand Prix",         flag:"🇦🇹", race_time:"2026-07-12T13:00:00+00:00", sprint_time:"2026-07-11T11:00:00+00:00"},
+  {id:"GBR", name:"British Grand Prix",          flag:"🇬🇧", race_time:"2026-07-26T14:00:00+00:00", sprint_time:null},
+  {id:"HUN", name:"Hungarian Grand Prix",        flag:"🇭🇺", race_time:"2026-08-02T13:00:00+00:00", sprint_time:null},
+  {id:"BEL", name:"Belgian Grand Prix",          flag:"🇧🇪", race_time:"2026-08-30T13:00:00+00:00", sprint_time:null},
+  {id:"NED", name:"Dutch Grand Prix",            flag:"🇳🇱", race_time:"2026-09-06T13:00:00+00:00", sprint_time:null},
+  {id:"ITA", name:"Italian Grand Prix",          flag:"🇮🇹", race_time:"2026-09-13T13:00:00+00:00", sprint_time:null},
+  {id:"AZE", name:"Azerbaijan Grand Prix",       flag:"🇦🇿", race_time:"2026-09-27T11:00:00+00:00", sprint_time:null},
+  {id:"SGP", name:"Singapore Grand Prix",        flag:"🇸🇬", race_time:"2026-10-04T12:00:00+00:00", sprint_time:null},
+  {id:"USA", name:"United States Grand Prix",    flag:"🇺🇸", race_time:"2026-10-18T19:00:00+00:00", sprint_time:"2026-10-17T19:00:00+00:00"},
+  {id:"MEX", name:"Mexico City Grand Prix",      flag:"🇲🇽", race_time:"2026-11-01T20:00:00+00:00", sprint_time:null},
+  {id:"BRA", name:"São Paulo Grand Prix",        flag:"🇧🇷", race_time:"2026-11-08T17:00:00+00:00", sprint_time:"2026-11-07T17:00:00+00:00"},
+  {id:"LVG", name:"Las Vegas Grand Prix",        flag:"🇺🇸", race_time:"2026-11-22T06:00:00+00:00", sprint_time:null},
+  {id:"QAT", name:"Qatar Grand Prix",            flag:"🇶🇦", race_time:"2026-11-29T15:00:00+00:00", sprint_time:"2026-11-28T14:00:00+00:00"},
+  {id:"ABU", name:"Abu Dhabi Grand Prix",        flag:"🇦🇪", race_time:"2026-12-06T13:00:00+00:00", sprint_time:null},
 ];
 
 const RACE_BY_ID = Object.fromEntries(RACES.map(r => [r.id, r]));
 
-/* ── Team colors ─────────────────────────────────────────────────────────── */
+/* ── Team colors for position badges ─────────────────────────────────────── */
 const TEAM_COLORS = {
-  "Red Bull Racing": ["#3671C6", "#3671C6"],
-  "Ferrari":         ["#E8002D", "#E8002D"],
-  "Mercedes":        ["#00FFC8", "#005F55"],
-  "McLaren":         ["#FF8000", "#FF8000"],
-  "Aston Martin":    ["#229971", "#229971"],
-  "Alpine":          ["#FF6EB4", "#005BBB"],
-  "Audi":            ["#CC0000", "#888888"],
-  "Williams":        ["#80D4FF", "#003087"],
-  "Cadillac":        ["#FFFFFF", "#1C1C1C"],
-  "Racing Bulls":    ["#FFFFFF", "#FFFFFF"],
-  "Haas":            ["#FFFFFF", "#1C1C1C", "#CC0000"],
+  "Mercedes":        "#00D4AA",  /* Mint */
+  "Ferrari":         "#DC0000",  /* Red */
+  "McLaren":         "#FF8700",  /* Orange */
+  "Audi":            "#550000",  /* Maroon */
+  "Alpine":          "#0082FA",  /* Light blue */
+  "Red Bull Racing": "#0600EF",  /* Blue */
+  "Racing Bulls":    "#5E72E4",  /* Purple-blue */
+  "Williams":        "#005AFF",  /* Bright blue */
+  "Haas":            "#EBEBEB",  /* Light gray */
+  "Cadillac":        "#C5C5C5",  /* Medium gray */
+  "Aston Martin":    "#229971",  /* Green */
+};
+
+/* ── Team logos (SVG) ────────────────────────────────────────────────────── */
+const TEAM_LOGOS = {
+  "Red Bull Racing": '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#0600EF"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">RB</text></svg>',
+  "Ferrari":         '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#DC0000"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">F</text></svg>',
+  "Mercedes":        '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#00D4AA"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">M</text></svg>',
+  "McLaren":         '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#FF8700"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">L</text></svg>',
+  "Aston Martin":    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#229971"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="9" fill="white" font-family="sans-serif">A</text></svg>',
+  "Alpine":          '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#0082FA"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">A</text></svg>',
+  "Audi":            '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#550000"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">A</text></svg>',
+  "Williams":        '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#005AFF"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="white" font-family="sans-serif">W</text></svg>',
+  "Cadillac":        '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#C5C5C5"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="9" fill="#333" font-family="sans-serif">C</text></svg>',
+  "Racing Bulls":    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#5E72E4"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="9" fill="white" font-family="sans-serif">B</text></svg>',
+  "Haas":            '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#EBEBEB"/><text x="12" y="14" text-anchor="middle" font-weight="bold" font-size="10" fill="#333" font-family="sans-serif">H</text></svg>',
 };
 
 /* ── URL params ──────────────────────────────────────────────────────────── */
@@ -157,19 +174,17 @@ function renderList() {
     const driver = driverMap[id];
     if (!driver) return;
 
-    const pos      = idx + 1;
-    const inTop    = pos <= TOP_N;
-    const colors   = TEAM_COLORS[driver.team] || ["#888", "#444"];
-    const gradient = colors.length === 3
-      ? `linear-gradient(135deg,${colors[0]} 0%,${colors[1]} 50%,${colors[2]} 100%)`
-      : `linear-gradient(135deg,${colors[0]} 0%,${colors[1]} 100%)`;
+    const pos        = idx + 1;
+    const inTop      = pos <= TOP_N;
+    const teamColor  = TEAM_COLORS[driver.team] || "#999";
+    const logoSvg    = TEAM_LOGOS[driver.team] || '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#666"/></svg>';
 
     const li = document.createElement("li");
     li.className  = `driver-item ${inTop ? "in-top" : "out-top"}`;
     li.dataset.id = id;
     li.innerHTML  = `
-      <div class="pos-badge">${pos}</div>
-      <div class="team-dot" style="background:${gradient}"></div>
+      <div class="pos-badge" style="background-color: ${teamColor}">${pos}</div>
+      <div class="team-logo">${logoSvg}</div>
       <div class="driver-info">
         <div class="driver-code">${driver.id}</div>
         <div class="driver-name">${driver.full_name}</div>
@@ -179,7 +194,7 @@ function renderList() {
     (inTop ? $list : $listTail).appendChild(li);
   });
 
-  if (orderedIds.length > TOP_N) $divider.classList.remove("hidden");
+  $divider.classList.toggle("hidden", orderedIds.length <= TOP_N);
 }
 
 /* ── SortableJS ──────────────────────────────────────────────────────────── */
@@ -193,29 +208,50 @@ function initSortable() {
       const topIds  = [...$list.querySelectorAll(".driver-item")].map(el => el.dataset.id);
       const tailIds = [...$listTail.querySelectorAll(".driver-item")].map(el => el.dataset.id);
       orderedIds = [...topIds, ...tailIds];
-      renderList();
-      initSortable();
+      updateTopNClasses();
     },
   };
   Sortable.create($list,     opts);
   Sortable.create($listTail, opts);
 }
 
+/* ── Update top-n classes without re-rendering ────────────────────────────── */
+function updateTopNClasses() {
+  const driverMap = Object.fromEntries(DRIVERS.map(d => [d.id, d]));
+  const allItems = [...$list.querySelectorAll(".driver-item"), ...$listTail.querySelectorAll(".driver-item")];
+  allItems.forEach((item, idx) => {
+    const pos = idx + 1;
+    const inTop = pos <= TOP_N;
+    const badge = item.querySelector(".pos-badge");
+    if (badge) {
+      badge.textContent = pos;
+      const driverId = item.dataset.id;
+      const driver = driverMap[driverId];
+      const teamColor = TEAM_COLORS[driver?.team] || "#999";
+      badge.style.backgroundColor = teamColor;
+    }
+    item.classList.toggle("in-top", inTop);
+    item.classList.toggle("out-top", !inTop);
+  });
+  $divider.classList.toggle("hidden", orderedIds.length <= TOP_N);
+}
+
 /* ── Deadline timer ──────────────────────────────────────────────────────── */
 function startDeadlineTimer(deadline) {
+  let timerId = null;
   function update() {
     const diff = deadline - Date.now();
     if (diff <= 0) {
       $deadlineBlock.textContent = "⛔ Приём прогнозов закрыт";
       document.getElementById("confirm-btn").disabled = true;
-      return;
+      return; // stop scheduling
     }
     const h = Math.floor(diff / 3_600_000);
     const m = Math.floor((diff % 3_600_000) / 60_000);
     const s = Math.floor((diff % 60_000) / 1_000);
     $deadlineBlock.textContent =
       `⏱ Закрытие через ${h > 0 ? h + "ч " : ""}${m}м ${s}с`;
-    setTimeout(update, 1_000);
+    timerId = setTimeout(update, 1_000);
   }
   update();
 }
